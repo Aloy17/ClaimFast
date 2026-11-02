@@ -13,7 +13,7 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 | `policy_number` | String or null |
 | `incident_date` | Exact date in `YYYY-MM-DD` format or null |
 | `location` | String or null |
-| `vehicle_reg_no` | Registration number string or null |
+| `vehicle_reg_no` | Uppercase registration number without spaces or hyphens, or null |
 | `estimated_amount_inr` | Integer or null |
 | `injury_reported` | `true`, `false`, or null |
 | `police_report_filed` | `true`, `false`, or null |
@@ -51,9 +51,9 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 - **Multiple incidents:** Label the incident most directly associated with the reported claim. Do not combine details from separate incidents.
 - **Forwarded messages:** Use relevant information from the complete message chain, but do not mistake quoted or unrelated correspondence for a new incident.
 - **Hinglish and spelling errors:** Interpret the intended meaning where it is reasonably clear. Do not guess when meaning is ambiguous.
-- **Uncertain theft:** Use `theft` only when the message indicates that a vehicle or part
+- **Uncertain theft:** Use `theft` when the message explicitly reports or suspects that a vehicle or its part has been stolen. A missing vehicle alone is not automatically proof of theft. TEST029 and TEST047 are retained as borderline theft examples for this dataset and must be flagged for review. Do not generalise these exceptions into a rule that every missing vehicle is a theft.
 
-## Ambiguous Label Review
+## 7. Ambiguous Label Review
 
 The following cases were reviewed for consistency with the claim-type and urgency definitions:
 
@@ -67,4 +67,4 @@ The following cases were reviewed for consistency with the claim-type and urgenc
 | TEST047 | Retained as theft; flagged borderline | Vehicle is missing and security cannot locate it, but formal theft confirmation is unknown. |
 | TEST058 | Retained as third_party_liability; amount corrected to null | Another driver was injured. The stated repair estimate belongs to an earlier, separate windshield incident. |
 
-These decisions were made to improve consistency between the messages, expected labels, and labelling guide. Borderline cases remain useful for evaluating model behaviour under uncertainty.
+These decisions were made to improve consistency between the messages, expected labels and labelling guide. Borderline cases remain useful for evaluating model behaviour under uncertainty.

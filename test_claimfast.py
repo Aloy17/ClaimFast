@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import unittest
 from unittest.mock import patch
 
@@ -5,7 +8,13 @@ import groq
 import httpx
 
 import main
-from prompts import SYSTEM_PROMPT, build_zero_shot_messages
+from prompts import (
+    SYSTEM_PROMPT,
+    FEW_SHOT_EXAMPLE_IDS,
+    build_zero_shot_messages,
+    build_few_shot_messages,
+)
+
 from validator import FIELDS, parse_response, validate_claim
 
 # Test fixture: a well formed reply, written by hand for these tests only.
@@ -172,6 +181,78 @@ class AssessClaimTests(unittest.TestCase):
         with patch("main.ask_model", side_effect=RuntimeError("no key")):
             main.show_outcome(main.assess_claim("x"))
 
+class FewShotPromptTests(unittest.TestCase):
+
+    def setUp(self):
+        dev_path = Path(__file__).resolve().parent / "data" / "dev.jsonl"
+
+        with dev_path.open("r", encoding="utf-8") as file:
+            self.dev_records = {
+                record["id"]: record
+                for record in (json.loads(line) for line in file if line.strip())
+            }
+
+    def test_supported_k_values(self):
+        for k in (3, 5, 8):
+            with self.subTest(k=k):
+                messages = build_few_shot_messages("test claim", k)
+                self.assertEqual(len(messages), 2 * k + 2)
+
+    def test_invalid_k_is_rejected(self):
+        for k in (0, 1, 2, 4, 6, 7, 9, -1):
+            with self.subTest(k=k):
+                with self.assertRaises(ValueError):
+                    build_few_shot_messages("test claim", k)
+
+    def test_system_message_is_first(self):
+        messages = build_few_shot_messages("test claim", 3)
+
+        self.assertEqual(messages[0]["role"], "system")
+        self.assertEqual(messages[0]["content"], SYSTEM_PROMPT)
+
+    def test_final_message_contains_original_claim(self):
+        claim = "My car was damaged yesterday."
+        messages = build_few_shot_messages(claim, 5)
+
+        self.assertEqual(messages[-1]["role"], "user")
+        self.assertEqual(messages[-1]["content"], claim)
+
+    def test_examples_follow_configured_order(self):
+        for k in (3, 5, 8):
+            with self.subTest(k=k):
+                messages = build_few_shot_messages("test claim", k)
+                example_ids = FEW_SHOT_EXAMPLE_IDS[:k]
+
+                for i, example_id in enumerate(example_ids):
+                    user_message = messages[1 + 2 * i]
+                    assistant_message = messages[2 + 2 * i]
+
+                    expected = self.dev_records[example_id]
+
+                    self.assertEqual(user_message["role"], "user")
+                    self.assertEqual(
+                        user_message["content"],
+                        expected["message"]
+                    )
+
+                    self.assertEqual(assistant_message["role"], "assistant")
+                    self.assertEqual(
+                        json.loads(assistant_message["content"]),
+                        expected["expected"]
+                    )
+
+    def test_all_examples_come_from_development_dataset(self):
+        for example_id in FEW_SHOT_EXAMPLE_IDS:
+            self.assertIn(example_id, self.dev_records)
+
+    def test_assistant_examples_are_valid_json(self):
+        for k in (3, 5, 8):
+            messages = build_few_shot_messages("test claim", k)
+
+            for message in messages:
+                if message["role"] == "assistant":
+                    data = json.loads(message["content"])
+                    self.assertEqual(set(data.keys()), set(FIELDS))
 
 if __name__ == "__main__":
     unittest.main()
