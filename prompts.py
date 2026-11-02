@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 SYSTEM_PROMPT = """You process motor insurance claim messages from customers in India. Read the customer's message, classify the claim, and extract the fields below.
 
 claim_type (choose exactly one):
@@ -47,3 +50,60 @@ def build_zero_shot_messages(claim):
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": claim},
     ]
+
+
+FEW_SHOT_EXAMPLE_IDS = [
+    "DEV001",
+    "DEV008",
+    "DEV003",
+    "DEV010",
+    "DEV005",
+    "DEV006",
+    "DEV014",
+    "DEV017",
+]
+
+
+def build_few_shot_messages(claim, k):
+    if k not in (3, 5, 8):
+        raise ValueError("k must be 3, 5, or 8")
+
+    dev_path = Path(__file__).resolve().parent / "data" / "dev.jsonl"
+
+    records = {}
+
+    with dev_path.open("r", encoding="utf-8") as file:
+        for line in file:
+            if line.strip():
+                record = json.loads(line)
+                records[record["id"]] = record
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT}
+    ]
+
+    for example_id in FEW_SHOT_EXAMPLE_IDS[:k]:
+        if example_id not in records:
+            raise ValueError(f"Missing development example: {example_id}")
+
+        example = records[example_id]
+
+        messages.append({
+            "role": "user",
+            "content": example["message"]
+        })
+
+        messages.append({
+            "role": "assistant",
+            "content": json.dumps(
+                example["expected"],
+                ensure_ascii=False
+            )
+        })
+
+    messages.append({
+        "role": "user",
+        "content": claim
+    })
+
+    return messages
