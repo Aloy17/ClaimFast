@@ -13,6 +13,9 @@ from prompts import (
     FEW_SHOT_EXAMPLE_IDS,
     build_zero_shot_messages,
     build_few_shot_messages,
+    build_reasoning_guided_messages,
+    build_strategy_messages,
+    PROMPT_STRATEGIES,
 )
 
 from validator import FIELDS, parse_response, validate_claim
@@ -289,6 +292,54 @@ class FewShotPromptTests(unittest.TestCase):
                 if message["role"] == "assistant":
                     data = json.loads(message["content"])
                     self.assertEqual(set(data.keys()), set(FIELDS))
+
+
+
+class StrategyDispatchTests(unittest.TestCase):
+    def test_all_five_strategies_are_configured(self):
+        self.assertEqual(
+            set(PROMPT_STRATEGIES),
+            {"A", "B1", "B2", "B3", "C"},
+        )
+
+    def test_strategy_a_uses_zero_shot_builder(self):
+        claim = "My car was damaged yesterday."
+        self.assertEqual(
+            build_strategy_messages("A", claim),
+            build_zero_shot_messages(claim),
+        )
+
+    def test_few_shot_strategies_use_configured_example_counts(self):
+        for strategy, k in (("B1", 3), ("B2", 5), ("B3", 8)):
+            with self.subTest(strategy=strategy):
+                messages = build_strategy_messages(
+                    strategy,
+                    "My car was damaged yesterday.",
+                )
+                self.assertEqual(len(messages), 2 * k + 2)
+                self.assertEqual(messages[-1]["content"],
+                                 "My car was damaged yesterday.")
+
+    def test_strategy_c_uses_reasoning_guidance(self):
+        claim = "My car was damaged yesterday."
+        messages = build_reasoning_guided_messages(claim)
+
+        self.assertEqual(
+            messages,
+            build_strategy_messages("C", claim),
+        )
+        self.assertEqual([m["role"] for m in messages], ["system", "user"])
+        self.assertIn("DECISION CHECKS", messages[0]["content"])
+        self.assertIn("exactly the nine specified keys",
+                      messages[0]["content"])
+        self.assertIn("Do not include your reasoning",
+                      messages[0]["content"])
+        self.assertEqual(messages[-1]["content"], claim)
+
+    def test_unknown_strategy_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_strategy_messages("D", "test claim")
+
 
 if __name__ == "__main__":
     unittest.main()

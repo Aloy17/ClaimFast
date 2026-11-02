@@ -107,3 +107,52 @@ def build_few_shot_messages(claim, k):
     })
 
     return messages
+
+
+REASONING_GUIDANCE = """DECISION CHECKS:
+1. Determine whether the message describes an insurance claim or FNOL.
+2. Identify the type of loss using the claim_type definitions.
+3. Determine urgency: injuries or an unsafe/undrivable vehicle require high urgency.
+4. Extract each field only from information explicitly stated in the message.
+5. Distinguish explicitly denied information (false) from information not mentioned (null).
+6. Check that the selected claim type, urgency, and extracted fields are consistent.
+
+Apply these checks before producing the answer. Do not include your reasoning,
+decision checks, or explanations in the response. Return only the required
+JSON object with exactly the nine specified keys."""
+
+
+def build_reasoning_guided_messages(claim):
+    messages = build_zero_shot_messages(claim)
+    messages[0]["content"] = SYSTEM_PROMPT + "\n\n" + REASONING_GUIDANCE
+    return messages
+
+
+PROMPT_STRATEGIES = {
+    "A": ("zero_shot", None),
+    "B1": ("few_shot", 3),
+    "B2": ("few_shot", 5),
+    "B3": ("few_shot", 8),
+    "C": ("reasoning_guided", None),
+}
+
+
+def build_strategy_messages(strategy, claim):
+    if strategy not in PROMPT_STRATEGIES:
+        supported = ", ".join(PROMPT_STRATEGIES)
+        raise ValueError(
+            f"Unknown strategy: {strategy}. Choose one of: {supported}"
+        )
+
+    strategy_type, k = PROMPT_STRATEGIES[strategy]
+
+    if strategy_type == "zero_shot":
+        return build_zero_shot_messages(claim)
+
+    if strategy_type == "few_shot":
+        return build_few_shot_messages(claim, k)
+
+    if strategy_type == "reasoning_guided":
+        return build_reasoning_guided_messages(claim)
+
+    raise ValueError(f"Unsupported strategy configuration: {strategy_type}")
