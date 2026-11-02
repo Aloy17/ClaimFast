@@ -57,7 +57,7 @@ def assess_claim(claim):
         return outcome
 
     outcome["data"] = data
-    outcome["problems"] = validate_claim(data)
+    outcome["problems"] = validate_claim(data, claim)
     return outcome
 
 

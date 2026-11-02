@@ -117,6 +117,42 @@ class ValidateTests(unittest.TestCase):
         data["police_report_filed"] = None
         self.assertEqual(validate_claim(data), [])
 
+    def test_unsafe_vehicle_with_medium_urgency_is_flagged(self):
+        data = self.good()
+        data["injury_reported"] = False
+        data["urgency"] = "medium"
+
+        problems = validate_claim(
+            data,
+            "My vehicle is not safe to drive."
+        )
+
+        self.assertIn("urgency should be high", " ".join(problems))
+
+    def test_undrivable_vehicle_with_low_urgency_is_flagged(self):
+        data = self.good()
+        data["injury_reported"] = False
+        data["urgency"] = "low"
+
+        problems = validate_claim(
+            data,
+            "The vehicle cannot be driven after the accident."
+        )
+
+        self.assertIn("urgency should be high", " ".join(problems))
+
+    def test_drivable_vehicle_does_not_trigger_unsafe_rule(self):
+        data = self.good()
+        data["injury_reported"] = False
+        data["urgency"] = "medium"
+
+        problems = validate_claim(
+            data,
+            "The car is damaged but can still be driven."
+        )
+
+        self.assertEqual(problems, [])
+
     def test_injury_with_lower_urgency_flagged(self):
         data = self.good()
         data["urgency"] = "medium"

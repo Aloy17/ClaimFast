@@ -51,7 +51,7 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 - **Multiple incidents:** Label the incident most directly associated with the reported claim. Do not combine details from separate incidents.
 - **Forwarded messages:** Use relevant information from the complete message chain, but do not mistake quoted or unrelated correspondence for a new incident.
 - **Hinglish and spelling errors:** Interpret the intended meaning where it is reasonably clear. Do not guess when meaning is ambiguous.
-- **Uncertain theft:** Use `theft` when the message explicitly reports or suspects that a vehicle or its part has been stolen. A missing vehicle alone is not automatically proof of theft. TEST029 and TEST047 are retained as borderline theft examples for this dataset and must be flagged for review. Do not generalise these exceptions into a rule that every missing vehicle is a theft.
+- **Uncertain theft:** Use `theft` when a customer reports a vehicle or its part as missing in an insurance claim or FNOL context. Treat this as suspected theft even when theft has not been confirmed. Do not infer that a police report or FIR has been filed unless explicitly stated. A mere mention of a missing vehicle outside an insurance claim or FNOL context is not sufficient to classify it as theft. DEV009, TEST029, and TEST047 are examples of suspected or ambiguous theft and should be flagged for review.
 
 ## 7. Ambiguous Label Review
 
@@ -59,6 +59,7 @@ The following cases were reviewed for consistency with the claim-type and urgenc
 
 | Record | Decision | Rationale |
 |---|---|---|
+| DEV009 | Retained as theft; flagged ambiguous | Insured vehicle is reported missing in an FNOL context; theft is suspected but unconfirmed. |
 | TEST009 | Retained as theft | Customer explicitly suspects vehicle theft. |
 | TEST027 | Corrected to own_damage | Only the insured vehicle's damage is reported. |
 | TEST029 | Retained as theft; flagged ambiguous | Vehicle is missing, but theft is not yet confirmed. |

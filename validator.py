@@ -46,8 +46,8 @@ def parse_response(text):
     return data, None
 
 
-def validate_claim(data):
-    """Check the parsed JSON against the claim rules. Returns a list of problems."""
+def validate_claim(data, claim_text=None):
+    """Validate extracted fields and urgency against the original claim when supplied."""
     problems = []
 
     for field in FIELDS:
@@ -89,5 +89,25 @@ def validate_claim(data):
 
     if data.get("injury_reported") is True and data.get("urgency") != "high":
         problems.append("injury_reported is true, so urgency should be high")
+
+    unsafe_patterns = (
+        r"\bundrivable\b",
+        r"\bunroadworthy\b",
+        r"\bunsafe to drive\b",
+        r"\bnot safe to drive\b",
+        r"\bcannot be driven\b",
+        r"\bcan\x27t be driven\b",
+        r"\bcannot drive\b",
+        r"\bunable to drive\b",
+        r"\bvehicle is immobilized\b",
+    )
+
+    if claim_text and data.get("urgency") != "high":
+        text = claim_text.lower()
+        if any(re.search(pattern, text) for pattern in unsafe_patterns):
+            problems.append(
+                "The claim describes an unsafe or undrivable vehicle, "
+                "so urgency should be high"
+            )
 
     return problems
