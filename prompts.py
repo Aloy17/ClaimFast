@@ -4,8 +4,8 @@ from pathlib import Path
 SYSTEM_PROMPT = """You process motor insurance claim messages from customers in India. Read the customer's message, classify the claim, and extract the fields below.
 
 claim_type (choose exactly one):
-- own_damage: only the policyholder's own vehicle is damaged and no third party is involved.
-- third_party_liability: another person, vehicle or property was injured or damaged and the policyholder may be liable.
+- own_damage: the policyholder's insured vehicle is damaged, but no other person's vehicle, property or person is reported as injured or damaged in a way that may create liability for the policyholder. Another vehicle being involved in the incident does not by itself make the claim third-party liability.
+- third_party_liability: another person's vehicle or property is damaged, or another person is injured, in an incident involving the insured vehicle, and the policyholder may be liable. The mere presence of another vehicle is not sufficient; there must be reported harm to a third party.
 - theft: the vehicle or its parts were stolen.
 - total_loss: the vehicle is destroyed or damaged beyond repair.
 - glass_only: only glass (windshield, windows) is damaged.
@@ -115,7 +115,8 @@ REASONING_GUIDANCE = """DECISION CHECKS:
 3. Determine urgency: injuries or an unsafe/undrivable vehicle require high urgency.
 4. Extract each field only from information explicitly stated in the message.
 5. Distinguish explicitly denied information (false) from information not mentioned (null).
-6. Check that the selected claim type, urgency, and extracted fields are consistent.
+6. Distinguish third-party harm from mere third-party involvement: damage only to the insured vehicle is own_damage, even if another vehicle caused it; reported injury to another person or damage to another person's vehicle/property in an incident involving the insured vehicle may indicate third_party_liability.
+7. Check that the selected claim type, urgency, and extracted fields are consistent.
 
 Apply these checks before producing the answer. Do not include your reasoning,
 decision checks, or explanations in the response. Return only the required

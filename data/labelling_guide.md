@@ -20,12 +20,19 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 
 ## 3. Claim type definitions
 
-- **own_damage:** Damage to the policyholder's own vehicle, with no third-party involvement.
-- **third_party_liability:** Another person's vehicle, property, or person has been injured or damaged, and the policyholder may be liable.
+- **own_damage:** Damage to the policyholder's insured vehicle, with no reported injury to another person or damage to another person's vehicle or property that may create liability for the policyholder. Another vehicle being involved does not, by itself, make the claim third-party liability.
+- **third_party_liability:** Another person's vehicle or property is damaged, or another person is injured, in an incident involving the insured vehicle, and the policyholder may be liable. There must be reported harm to a third party; the mere presence of another vehicle is not sufficient.
 - **theft:** The vehicle or one of its parts has been stolen.
 - **total_loss:** The vehicle is destroyed or damaged beyond repair.
 - **glass_only:** Damage is limited to glass, such as a windshield or window.
 - **not_a_claim:** The message is not an insurance claim or FNOL.
+
+### Claim-type distinction rules
+
+- If damage is reported only to the insured vehicle, classify it as `own_damage`, even when another vehicle caused the damage or left the scene.
+- If another person's vehicle or property is also damaged, or another person is injured, in an incident involving the insured vehicle, classify it as `third_party_liability` when the policyholder may be liable.
+- Do not classify a claim as `third_party_liability` merely because another vehicle or driver is mentioned. Identify whether a third party actually suffered injury or property damage.
+- Use the message's stated facts. Do not invent fault, injuries, or damage that is not reported.
 
 ## 4. Urgency rules
 

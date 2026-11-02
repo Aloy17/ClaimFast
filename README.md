@@ -22,7 +22,7 @@ Missing information must be returned as `null`. `false` means the message explic
 
 - `main.py`: command-line claim processing application
 - `groq_client.py`: communicates with the Groq API
-- `prompts.py`: zero-shot and few-shot prompt builders
+- `prompts.py`: zero-shot, few-shot (k=3, 5, 8) and reasoning-guided prompt builders
 - `validator.py`: parses model responses and validates extracted fields
 - `test_claimfast.py`: automated tests that do not require an API key
 - `data/dev.jsonl`: 20 development records used for prompt development
@@ -93,7 +93,7 @@ Run the automated test suite:
 python -m unittest -v
 ```
 
-The test suite currently contains **26 automated tests**. It uses a stand-in for the model, so it does not require your API key or consume your Groq API quota.
+The test suite currently contains **36 automated tests**. It uses a stand-in for the model, so it does not require your API key or consume your Groq API quota.
 
 ## Troubleshooting
 
@@ -108,6 +108,7 @@ The test suite currently contains **26 automated tests**. It uses a stand-in for
 
 - Zero-shot claim extraction
 - Few-shot prompt construction with k=3, 5 and 8
+- Reasoning-guided prompt strategy
 - Synthetic development and held-out test datasets
 - Dataset labelling guide
 - JSON parsing and output validation
@@ -115,7 +116,6 @@ The test suite currently contains **26 automated tests**. It uses a stand-in for
 
 ### Pending
 
-- Reasoning-oriented prompt strategy
 - Evaluation framework and experiment results
 - Comparative analysis of prompt strategies
 - Production prompt selection

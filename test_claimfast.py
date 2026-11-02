@@ -172,6 +172,21 @@ class PromptTests(unittest.TestCase):
         for field in FIELDS:
             self.assertIn(field, SYSTEM_PROMPT)
 
+    def test_prompt_distinguishes_third_party_harm_from_involvement(self):
+        self.assertIn(
+            "Another vehicle being involved in the incident does not by itself",
+            SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "there must be reported harm to a third party",
+            SYSTEM_PROMPT,
+        )
+
+    def test_reasoning_guidance_checks_third_party_harm(self):
+        from prompts import REASONING_GUIDANCE
+        self.assertIn("mere third-party involvement", REASONING_GUIDANCE)
+        self.assertIn("reported injury to another person", REASONING_GUIDANCE)
+
 
 class AssessClaimTests(unittest.TestCase):
     def test_success_records_usage(self):
