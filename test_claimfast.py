@@ -174,18 +174,55 @@ class PromptTests(unittest.TestCase):
 
     def test_prompt_distinguishes_third_party_harm_from_involvement(self):
         self.assertIn(
-            "Another vehicle being involved in the incident does not by itself",
+            "Another vehicle being involved does not by itself",
             SYSTEM_PROMPT,
         )
         self.assertIn(
-            "there must be reported harm to a third party",
+            "a person other than the policyholder is injured",
+            SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "This includes an injured passenger in the insured vehicle",
             SYSTEM_PROMPT,
         )
 
     def test_reasoning_guidance_checks_third_party_harm(self):
         from prompts import REASONING_GUIDANCE
-        self.assertIn("mere third-party involvement", REASONING_GUIDANCE)
-        self.assertIn("reported injury to another person", REASONING_GUIDANCE)
+        self.assertIn("mere involvement", REASONING_GUIDANCE)
+        self.assertIn(
+            "injury to a person other than the policyholder",
+            REASONING_GUIDANCE,
+        )
+        self.assertIn("including an insured-vehicle passenger", REASONING_GUIDANCE)
+        self.assertIn("use total_loss as the primary claim_type", REASONING_GUIDANCE)
+
+
+class DatasetLabellingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        data_dir = Path(__file__).resolve().parent / "data"
+        cls.records = {}
+
+        for filename in ("dev.jsonl", "test.jsonl"):
+            with (data_dir / filename).open("r", encoding="utf-8") as file:
+                for line in file:
+                    if line.strip():
+                        record = json.loads(line)
+                        cls.records[record["id"]] = record
+
+    def test_injured_passengers_are_third_party_liability(self):
+        for record_id in ("DEV019", "TEST039", "TEST019"):
+            with self.subTest(record_id=record_id):
+                expected = self.records[record_id]["expected"]
+                self.assertEqual(expected["claim_type"], "third_party_liability")
+                self.assertTrue(expected["injury_reported"])
+                self.assertEqual(expected["urgency"], "high")
+
+    def test_total_loss_remains_primary_when_vehicle_is_beyond_repair(self):
+        expected = self.records["TEST054"]["expected"]
+        self.assertEqual(expected["claim_type"], "total_loss")
+        self.assertTrue(expected["injury_reported"])
+        self.assertEqual(expected["urgency"], "high")
 
 
 class AssessClaimTests(unittest.TestCase):

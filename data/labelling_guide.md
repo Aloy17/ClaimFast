@@ -20,8 +20,8 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 
 ## 3. Claim type definitions
 
-- **own_damage:** Damage to the policyholder's insured vehicle, with no reported injury to another person or damage to another person's vehicle or property that may create liability for the policyholder. Another vehicle being involved does not, by itself, make the claim third-party liability.
-- **third_party_liability:** Another person's vehicle or property is damaged, or another person is injured, in an incident involving the insured vehicle, and the policyholder may be liable. There must be reported harm to a third party; the mere presence of another vehicle is not sufficient.
+- **own_damage:** Damage to the policyholder's insured vehicle, with no reported third-party injury or damage that may create liability for the policyholder. Another vehicle being involved does not, by itself, make the claim third-party liability.
+- **third_party_liability:** Another person's vehicle or property is damaged, or a person other than the policyholder is injured, in an incident involving the insured vehicle. This includes an injured passenger in the insured vehicle. The assignment's 'may be liable' condition does not require proven fault or an admission of liability. Do not infer injury or property damage that the message does not report.
 - **theft:** The vehicle or one of its parts has been stolen.
 - **total_loss:** The vehicle is destroyed or damaged beyond repair.
 - **glass_only:** Damage is limited to glass, such as a windshield or window.
@@ -29,10 +29,12 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 
 ### Claim-type distinction rules
 
-- If damage is reported only to the insured vehicle, classify it as `own_damage`, even when another vehicle caused the damage or left the scene.
-- If another person's vehicle or property is also damaged, or another person is injured, in an incident involving the insured vehicle, classify it as `third_party_liability` when the policyholder may be liable.
-- Do not classify a claim as `third_party_liability` merely because another vehicle or driver is mentioned. Identify whether a third party actually suffered injury or property damage.
-- Use the message's stated facts. Do not invent fault, injuries, or damage that is not reported.
+- If damage is reported only to the insured vehicle, with no reported third-party injury or property damage, classify it as `own_damage`, even when another vehicle caused the damage or left the scene.
+- A person other than the policyholder is a third party for this labelling task. This includes a passenger in the insured vehicle, another vehicle's driver or passenger, and a pedestrian.
+- If another person is injured, or another person's vehicle or property is damaged, in an incident involving the insured vehicle, classify it as `third_party_liability`. The assignment says the policyholder may be liable; proven fault or an admission of liability is not required.
+- Do not classify a claim as `third_party_liability` merely because another vehicle or driver is mentioned. Actual third-party injury or property damage must be reported.
+- Do not infer fault, injury, or damage that is not stated. An injury to the policyholder alone does not establish third-party liability.
+- **Single-label overlap:** If the insured vehicle is destroyed or beyond repair, use `total_loss` as the primary `claim_type`, even if third-party harm is also reported. Capture any injury in `injury_reported` and set `urgency` to `high`.
 
 ## 4. Urgency rules
 
@@ -74,5 +76,8 @@ The following cases were reviewed for consistency with the claim-type and urgenc
 | TEST046 | Retained as third_party_liability | Both the insured vehicle and another party's vehicle are damaged. |
 | TEST047 | Retained as theft; flagged borderline | Vehicle is missing and security cannot locate it, but formal theft confirmation is unknown. |
 | TEST058 | Retained as third_party_liability; amount corrected to null | Another driver was injured. The stated repair estimate belongs to an earlier, separate windshield incident. |
+| DEV019 | Corrected to third_party_liability | A passenger other than the policyholder is reported injured in an incident involving the insured vehicle. |
+| TEST039 | Corrected to third_party_liability | A passenger other than the policyholder is reported injured in an incident involving the insured vehicle. |
+| TEST054 | Retained as total_loss | The insured vehicle is burnt beyond repair. The guard's injury remains captured separately and makes urgency high. |
 
 These decisions were made to improve consistency between the messages, expected labels and labelling guide. Borderline cases remain useful for evaluating model behaviour under uncertainty.
