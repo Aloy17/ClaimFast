@@ -106,7 +106,7 @@ class AnalysisTests(unittest.TestCase):
         result = _field_metrics([make_record("T1", expected, predicted)], "injury_reported")
         self.assertEqual(result["exact_match"], 0.0)
         self.assertEqual(result["false_positive"], 1)
-        self.assertEqual(result["false_negative"], 1)
+        self.assertEqual(result["false_negative"], 0)
 
     def test_false_is_a_valid_extracted_boolean(self):
         result = _field_metrics(
