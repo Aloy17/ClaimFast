@@ -130,8 +130,61 @@ class ParseTests(unittest.TestCase):
         self.assertIsNone(data)
         self.assertIn("malformed", error)
 
+    def test_strategy_c_rejects_preamble_inside_answer(self):
+        response = (
+            "<reasoning>Reported collision.</reasoning>"
+            "<answer>Here is the result:\\n" + GOOD_REPLY + "</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(data)
+        self.assertIn("malformed", error)
+
+    def test_strategy_c_rejects_trailing_text_inside_answer(self):
+        response = (
+            "<reasoning>Reported collision.</reasoning>"
+            "<answer>" + GOOD_REPLY + "\\nExtra text</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(data)
+        self.assertIn("only one JSON object", error)
+
+    def test_strategy_c_rejects_multiple_json_objects(self):
+        response = (
+            "<reasoning>Reported collision.</reasoning>"
+            "<answer>" + GOOD_REPLY + "\\n" + GOOD_REPLY + "</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(data)
+        self.assertIn("only one JSON object", error)
+
+    def test_strategy_c_accepts_whitespace_around_answer_json(self):
+        response = (
+            "<reasoning>Reported collision.</reasoning>"
+            "<answer>\n  " + GOOD_REPLY + "  \n</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(error)
+        self.assertEqual(data["claim_type"], "third_party_liability")
+
     def test_other_strategies_keep_existing_parser(self):
         data, error = parse_strategy_response(GOOD_REPLY, "A")
+
+        self.assertIsNone(error)
+        self.assertEqual(data["claim_type"], "third_party_liability")
+
+
+    def test_strategy_a_keeps_permissive_json_extraction(self):
+        response = "Here is the result:\\n" + GOOD_REPLY + "\\nExtra text"
+
+        data, error = parse_strategy_response(response, "A")
 
         self.assertIsNone(error)
         self.assertEqual(data["claim_type"], "third_party_liability")

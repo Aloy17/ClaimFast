@@ -76,7 +76,22 @@ def parse_strategy_response(text, strategy):
     if not answer.strip():
         return None, "Strategy C answer block is empty."
 
-    return parse_response(answer)
+    answer = answer.strip()
+    try:
+        data, end = json.JSONDecoder().raw_decode(answer)
+    except json.JSONDecodeError as error:
+        return None, "Strategy C answer JSON is malformed: " + str(error)
+
+    if not isinstance(data, dict):
+        return None, "Strategy C answer must be a JSON object."
+
+    if answer[end:].strip():
+        return None, (
+            "Strategy C answer block must contain only one JSON object "
+            "with no surrounding text."
+        )
+
+    return data, None
 
 
 def validate_claim(data, claim_text=None):
