@@ -24,7 +24,9 @@ Missing information must be returned as `null`. `false` means the message explic
 - `groq_client.py`: communicates with the Groq API
 - `prompts.py`: zero-shot, few-shot (k=3, 5, 8) and reasoning-guided prompt builders
 - `validator.py`: parses model responses and validates extracted fields
-- `test_claimfast.py`: automated tests that do not require an API key
+- `evaluation.py`: runs one prompt strategy/run against the held-out dataset and logs raw responses, metadata and fingerprints
+- `analysis.py`: calculates evaluation metrics and exports JSON/CSV reports from saved logs without API calls
+- `test_claimfast.py`, `test_evaluation.py`, `test_analysis.py`: automated tests that do not require an API key
 - `data/dev.jsonl`: 20 development records used for prompt development
 - `data/test.jsonl`: 60 held-out test records reserved for evaluation
 - `data/labelling_guide.md`: dataset labelling rules and ambiguous-case decisions
@@ -93,7 +95,45 @@ Run the automated test suite:
 python -m unittest -v
 ```
 
-The test suite currently contains **38 automated tests**. It uses a stand-in for the model, so it does not require your API key or consume your Groq API quota.
+The test suite currently contains **88 automated tests**. It uses a stand-in for the model, so it does not require your API key or consume your Groq API quota.
+
+
+## Run an evaluation
+
+Run one strategy and run number against the held-out test set:
+
+```bash
+python evaluation.py --strategy A --run 1
+```
+
+Available strategies are `A`, `B1`, `B2`, `B3` and `C`. The runner writes the canonical append-only log to `outputs/raw_responses.jsonl` and regenerates `outputs/results.csv`. It records model settings, token usage, latency, errors and dataset/prompt fingerprints. Re-running the same strategy/run resumes missing records and refuses to resume if the dataset or prompt configuration has changed.
+
+For a separate experiment output directory, pass `--output-dir`. Keep historical logs: do not mix older records without fingerprints into a new formal benchmark run. The evaluation runner makes real provider requests; run it only when the benchmark is approved.
+
+## Analyse saved results
+
+Analyse a saved log without making any model/API calls:
+
+```bash
+python analysis.py --input outputs/raw_responses.jsonl --output-dir outputs/analysis
+```
+
+The command writes:
+
+- `analysis.json`: detailed overall, per-strategy and per-run metrics
+- `summary.csv`: a compact comparison table
+
+The report includes claim-type and urgency accuracy, macro precision/recall/F1, per-class metrics and confusion matrices; exact match for each field and for the complete nine-field record; extraction micro precision/recall/F1; JSON validity and validation pass rates; unsupported non-null extractions; injury recall and high-urgency recall; run-to-run agreement; token totals/averages; and mean, median and p95 latency.
+
+For a cost estimate, supply the current provider prices in USD per million tokens:
+
+```bash
+python analysis.py --input outputs/raw_responses.jsonl --output-dir outputs/analysis --input-cost-per-million 0.075 --output-cost-per-million 0.30 --projected-calls 900
+```
+
+For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.075 per million input tokens** and **$0.30 per million output tokens**. Check the [current Groq model pricing](https://console.groq.com/docs/models) before using the estimate, because prices can change. Prices are passed as arguments rather than hard-coded. The projected estimate extrapolates the observed average tokens per request to the requested call count; it is an estimate, not a provider quote. It is only representative when the observed sample reflects the planned experiment. Subgroup reports show observed costs; the projected cost is reported once for the combined input log.
+
+The analysis treats `null` as unknown/not extracted and `false` as an explicit boolean value. An unsupported non-null extraction is counted when the gold value is `null` but the prediction is populated. Incorrect populated values where the gold value is also populated are reported separately. Macro averages include every allowed class, including classes absent from the sample. Run agreement compares parsed predictions for the same strategy and record across runs; API/parse failures are excluded from agreement pairs but remain in reliability denominators.
 
 ## Troubleshooting
 
@@ -113,10 +153,12 @@ The test suite currently contains **38 automated tests**. It uses a stand-in for
 - Dataset labelling guide
 - JSON parsing and output validation
 - Automated unit tests
+- Single-strategy evaluation runner with fingerprint-protected experiment logging
+- Offline metric calculation, report export and parameterized cost estimation
 
 ### Pending
 
-- Evaluation framework and experiment results
+- Approved full benchmark and experiment results
 - Comparative analysis of prompt strategies
 - Production prompt selection
 - Final project report and demonstration
