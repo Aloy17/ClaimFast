@@ -128,10 +128,10 @@ The report includes claim-type and urgency accuracy, macro precision/recall/F1, 
 For a cost estimate, supply the current provider prices in USD per million tokens:
 
 ```bash
-python analysis.py --input outputs/raw_responses.jsonl --output-dir outputs/analysis --input-cost-per-million INPUT_PRICE --output-cost-per-million OUTPUT_PRICE --projected-calls 900
+python analysis.py --input outputs/raw_responses.jsonl --output-dir outputs/analysis --input-cost-per-million 0.075 --output-cost-per-million 0.30 --projected-calls 900
 ```
 
-Replace `INPUT_PRICE` and `OUTPUT_PRICE` with the current input/output token prices for the selected model. Prices are not hard-coded. The projected estimate extrapolates the observed average tokens per request to the requested call count; it is an estimate, not a provider quote. It is only representative when the observed sample reflects the planned experiment. Subgroup reports show observed costs; the projected cost is reported once for the combined input log.
+For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.075 per million input tokens** and **$0.30 per million output tokens**. Check the [current Groq model pricing](https://console.groq.com/docs/models) before using the estimate, because prices can change. Prices are passed as arguments rather than hard-coded. The projected estimate extrapolates the observed average tokens per request to the requested call count; it is an estimate, not a provider quote. It is only representative when the observed sample reflects the planned experiment. Subgroup reports show observed costs; the projected cost is reported once for the combined input log.
 
 The analysis treats `null` as unknown/not extracted and `false` as an explicit boolean value. An unsupported non-null extraction is counted when the gold value is `null` but the prediction is populated. Incorrect populated values where the gold value is also populated are reported separately. Macro averages include every allowed class, including classes absent from the sample. Run agreement compares parsed predictions for the same strategy and record across runs; API/parse failures are excluded from agreement pairs but remain in reliability denominators.
 
