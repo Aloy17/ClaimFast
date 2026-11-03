@@ -249,7 +249,7 @@ def _percentile(values, percentile):
     return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
 
 
-def _performance_metrics(records, input_rate=None, output_rate=None, projected_calls=900):
+def _performance_metrics(records, input_rate=None, output_rate=None, projected_calls=None):
     metrics = {}
     for field in ("prompt_tokens", "completion_tokens", "total_tokens"):
         values = [
@@ -290,7 +290,11 @@ def _performance_metrics(records, input_rate=None, output_rate=None, projected_c
         ) / 1_000_000
         average_prompt = prompt["mean"]
         average_completion = completion["mean"]
-        if average_prompt is None or average_completion is None:
+        if (
+            projected_calls is None
+            or average_prompt is None
+            or average_completion is None
+        ):
             projected_cost = None
             projected_prompt_tokens = None
             projected_completion_tokens = None
@@ -312,7 +316,8 @@ def _performance_metrics(records, input_rate=None, output_rate=None, projected_c
             "note": (
                 "Projection extrapolates the observed average tokens per request; "
                 "it is not a quote and is representative only if the observed "
-                "sample reflects the planned strategies and dataset."
+                "sample reflects the planned experiment. Projection is reported "
+                "only for the overall dataset, not independently for each subgroup."
             ),
         }
     else:
@@ -403,7 +408,7 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
         strategies[strategy].append(item)
         runs[(strategy, run_number)].append(item)
 
-    def summarize(group):
+    def summarize(group, projection_calls=None):
         classification = {
             field: _classification_metrics(group, field, labels)
             for field, labels in CLASSIFICATION_FIELDS.items()
@@ -468,7 +473,7 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
             },
             "reliability": reliability,
             "performance": _performance_metrics(
-                group, input_rate, output_rate, projected_calls
+                group, input_rate, output_rate, projection_calls
             ),
         }
 
@@ -480,9 +485,11 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
         f"{strategy}/run_{run_number}": summarize(group)
         for (strategy, run_number), group in sorted(runs.items())
     }
+    overall = summarize(records, projected_calls)
     return {
         "record_count": len(records),
         "strategies": sorted(strategies),
+        "overall": overall,
         "per_strategy": per_strategy,
         "per_run": per_run,
         "run_agreement": _run_agreement(records),
@@ -531,6 +538,7 @@ def write_reports(report, output_dir):
         writer = csv.DictWriter(file, fieldnames=columns)
         writer.writeheader()
         sections = [
+            ("overall", {"overall": report["overall"]}),
             ("strategy", report["per_strategy"]),
             ("run", report["per_run"]),
         ]
