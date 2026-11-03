@@ -18,7 +18,7 @@ from prompts import (
     PROMPT_STRATEGIES,
 )
 
-from validator import FIELDS, parse_response, validate_claim
+from validator import FIELDS, parse_response, parse_strategy_response, validate_claim
 
 # Test fixture: a well formed reply, written by hand for these tests only.
 GOOD_REPLY = (
@@ -73,6 +73,68 @@ class ParseTests(unittest.TestCase):
             data, error = parse_response(text)
             self.assertIsNone(data)
             self.assertIn("empty", error)
+
+    def test_strategy_c_parses_only_answer_block(self):
+        response = (
+            "<reasoning>Reported collision; no injury mentioned.</reasoning>\n"
+            "<answer>" + GOOD_REPLY + "</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(error)
+        self.assertEqual(data["claim_type"], "third_party_liability")
+
+    def test_strategy_c_rejects_missing_answer_tags(self):
+        response = (
+            "<reasoning>Reported collision.</reasoning>\\n"
+            + GOOD_REPLY
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(data)
+        self.assertIn("<answer>", error)
+
+    def test_strategy_c_rejects_text_outside_tagged_blocks(self):
+        response = (
+            "Here is the result.\\n"
+            "<reasoning>Reported collision.</reasoning>"
+            "<answer>" + GOOD_REPLY + "</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(data)
+        self.assertIn("no text outside", error)
+
+    def test_strategy_c_rejects_empty_reasoning(self):
+        response = (
+            "<reasoning> </reasoning>"
+            "<answer>" + GOOD_REPLY + "</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(data)
+        self.assertIn("reasoning block is empty", error)
+
+    def test_strategy_c_rejects_malformed_answer_json(self):
+        response = (
+            "<reasoning>Reported collision.</reasoning>"
+            "<answer>{invalid json}</answer>"
+        )
+
+        data, error = parse_strategy_response(response, "C")
+
+        self.assertIsNone(data)
+        self.assertIn("malformed", error)
+
+    def test_other_strategies_keep_existing_parser(self):
+        data, error = parse_strategy_response(GOOD_REPLY, "A")
+
+        self.assertIsNone(error)
+        self.assertEqual(data["claim_type"], "third_party_liability")
 
 
 class ValidateTests(unittest.TestCase):
@@ -381,11 +443,18 @@ class StrategyDispatchTests(unittest.TestCase):
             build_strategy_messages("C", claim),
         )
         self.assertEqual([m["role"] for m in messages], ["system", "user"])
-        self.assertIn("DECISION CHECKS", messages[0]["content"])
-        self.assertIn("exactly the nine specified keys",
-                      messages[0]["content"])
-        self.assertIn("Do not include your reasoning",
-                      messages[0]["content"])
+
+        system_prompt = messages[0]["content"]
+
+        self.assertIn("<reasoning>", system_prompt)
+        self.assertIn("</reasoning>", system_prompt)
+        self.assertIn("<answer>", system_prompt)
+        self.assertIn("</answer>", system_prompt)
+        self.assertIn("exactly the nine specified keys", system_prompt)
+        self.assertNotIn(
+            "JSON object and nothing else. No markdown",
+            system_prompt,
+        )
         self.assertEqual(messages[-1]["content"], claim)
 
     def test_unknown_strategy_is_rejected(self):

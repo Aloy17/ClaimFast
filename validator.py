@@ -46,6 +46,39 @@ def parse_response(text):
     return data, None
 
 
+def parse_strategy_response(text, strategy):
+    """Parse a strategy response, extracting the tagged answer for Strategy C."""
+    if strategy != "C":
+        return parse_response(text)
+
+    if text is None or not text.strip():
+        return parse_response(text)
+
+    pattern = (
+        r"\s*<reasoning>\s*(.*?)\s*</reasoning>"
+        r"\s*<answer>\s*(.*?)\s*</answer>\s*"
+    )
+
+    match = re.fullmatch(pattern, text, flags=re.DOTALL)
+
+    if not match:
+        return None, (
+            "Strategy C response must contain exactly one <reasoning> "
+            "block followed by exactly one <answer> block, "
+            "with no text outside them."
+        )
+
+    reasoning, answer = match.groups()
+
+    if not reasoning.strip():
+        return None, "Strategy C reasoning block is empty."
+
+    if not answer.strip():
+        return None, "Strategy C answer block is empty."
+
+    return parse_response(answer)
+
+
 def validate_claim(data, claim_text=None):
     """Validate extracted fields and urgency against the original claim when supplied."""
     problems = []

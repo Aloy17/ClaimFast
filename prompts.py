@@ -119,16 +119,40 @@ REASONING_GUIDANCE = """DECISION CHECKS:
 7. If the insured vehicle is destroyed or beyond repair, use total_loss as the primary claim_type even if third-party harm is also reported. Capture injuries separately and set urgency to high.
 8. Check that the selected claim type, urgency, and extracted fields are consistent.
 
-Apply these checks before producing the answer. Do not include your reasoning,
-decision checks, or explanations in the response. Return only the required
-JSON object with exactly the nine specified keys."""
+Within the reasoning block, provide a concise, evidence-based decision
+summary addressing these checks. Do not invent facts or add information
+that is absent from the message."""
 
 
 def build_reasoning_guided_messages(claim):
     messages = build_zero_shot_messages(claim)
-    messages[0]["content"] = SYSTEM_PROMPT + "\n\n" + REASONING_GUIDANCE
-    return messages
 
+    schema_start = SYSTEM_PROMPT.index(
+        "The object must have exactly these keys:"
+    )
+    schema_definition = SYSTEM_PROMPT[
+        schema_start + len("The object must have exactly these keys:"):
+    ].strip()
+
+    reasoning_system_prompt = (
+        SYSTEM_PROMPT.split("Output format:", 1)[0]
+        + "Output format:\n"
+        + "Return exactly two tagged blocks in this order, with no text "
+        + "outside them:\n"
+        + "<reasoning>\n"
+        + "A concise, evidence-based decision summary addressing the "
+        + "reasoning checks.\n"
+        + "</reasoning>\n"
+        + "<answer>\n"
+        + "The JSON object must have exactly the nine specified keys "
+        + "and use these field names and types:\n"
+        + schema_definition
+        + "\n</answer>\n\n"
+        + REASONING_GUIDANCE
+    )
+
+    messages[0]["content"] = reasoning_system_prompt
+    return messages
 
 PROMPT_STRATEGIES = {
     "A": ("zero_shot", None),
