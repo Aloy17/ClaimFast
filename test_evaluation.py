@@ -3,7 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from evaluation import load_dataset, run_evaluation
 from validator import FIELDS
@@ -162,6 +162,52 @@ class EvaluationTests(unittest.TestCase):
             run_evaluation(
                 "A", 0, self.dataset_path, self.output_dir, model_call=Mock()
             )
+
+
+    def test_resume_rejects_changed_dataset_fingerprint(self):
+        first_model = Mock(return_value=self.fake_model_result())
+        run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir,
+            model_call=first_model,
+        )
+
+        changed_record = dict(self.record)
+        changed_record["message"] += " Additional information."
+        self.dataset_path.write_text(
+            json.dumps(changed_record) + "\n",
+            encoding="utf-8",
+        )
+
+        second_model = Mock(return_value=self.fake_model_result())
+        with self.assertRaisesRegex(ValueError, "fingerprints"):
+            run_evaluation(
+                "A", 1, self.dataset_path, self.output_dir,
+                model_call=second_model,
+            )
+
+        first_model.assert_called_once()
+        second_model.assert_not_called()
+
+    def test_resume_rejects_changed_prompt_fingerprint(self):
+        first_model = Mock(return_value=self.fake_model_result())
+        run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir,
+            model_call=first_model,
+        )
+
+        second_model = Mock(return_value=self.fake_model_result())
+        with patch(
+            "evaluation.build_strategy_messages",
+            return_value=[{"role": "user", "content": "Changed prompt"}],
+        ):
+            with self.assertRaisesRegex(ValueError, "fingerprints"):
+                run_evaluation(
+                    "A", 1, self.dataset_path, self.output_dir,
+                    model_call=second_model,
+                )
+
+        first_model.assert_called_once()
+        second_model.assert_not_called()
 
 
 if __name__ == "__main__":

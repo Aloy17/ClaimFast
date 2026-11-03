@@ -7,6 +7,7 @@ recovered safely by rerunning the same experiment.
 
 import argparse
 import csv
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,7 @@ MAX_COMPLETION_TOKENS = 2000
 
 CSV_COLUMNS = [
     "timestamp_utc", "model", "strategy", "run_number", "record_id",
+    "dataset_fingerprint", "prompt_config_fingerprint",
     "temperature", "reasoning_effort", "max_completion_tokens",
     "json_valid", "validation_passed", "parse_error", "validation_errors",
     "api_error", "latency_seconds", "prompt_tokens", "completion_tokens",
@@ -75,6 +77,36 @@ def load_dataset(path=DEFAULT_DATASET):
     if not records:
         raise ValueError("Dataset contains no records")
     return records
+
+
+
+def _fingerprint_inputs(dataset_path, records, strategy):
+    """Fingerprint the dataset and effective prompt configuration."""
+    dataset_hash = hashlib.sha256(
+        Path(dataset_path).read_bytes()
+    ).hexdigest()
+
+    prompt_payload = {
+        "strategy": strategy,
+        "model": MODEL,
+        "temperature": TEMPERATURE,
+        "reasoning_effort": REASONING_EFFORT,
+        "max_completion_tokens": MAX_COMPLETION_TOKENS,
+        "messages": [
+            build_strategy_messages(strategy, record["message"])
+            for record in records
+        ],
+    }
+
+    canonical = json.dumps(
+        prompt_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    prompt_hash = hashlib.sha256(canonical).hexdigest()
+    return dataset_hash, prompt_hash
 
 
 def _read_experiment_log(raw_path):
@@ -139,12 +171,33 @@ def run_evaluation(
         raise ValueError("run_number must be a positive integer")
 
     records = load_dataset(dataset_path)
+    dataset_fingerprint, prompt_fingerprint = _fingerprint_inputs(
+        dataset_path, records, strategy
+    )
+
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     raw_path = output_dir / "raw_responses.jsonl"
     csv_path = output_dir / "results.csv"
 
     experiment_records = _read_experiment_log(raw_path)
+    matching_run = [
+        item for item in experiment_records
+        if item.get("strategy") == strategy
+        and item.get("run_number") == run_number
+    ]
+
+    for item in matching_run:
+        if (
+            item.get("dataset_fingerprint") != dataset_fingerprint
+            or item.get("prompt_config_fingerprint") != prompt_fingerprint
+        ):
+            raise ValueError(
+                f"Cannot resume {strategy}/run {run_number}: existing records "
+                "have missing or mismatched dataset/prompt fingerprints. "
+                "Preserve the historical log and use a separate output directory."
+            )
+
     completed = {
         (item.get("strategy"), item.get("run_number"), item.get("record_id"))
         for item in experiment_records
@@ -184,6 +237,8 @@ def run_evaluation(
             "strategy": strategy,
             "run_number": run_number,
             "record_id": record["id"],
+            "dataset_fingerprint": dataset_fingerprint,
+            "prompt_config_fingerprint": prompt_fingerprint,
             "temperature": TEMPERATURE,
             "reasoning_effort": REASONING_EFFORT,
             "max_completion_tokens": MAX_COMPLETION_TOKENS,
