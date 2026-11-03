@@ -190,9 +190,11 @@ class AnalysisTests(unittest.TestCase):
             output_rate=2.0,
             projected_calls=10,
         )
-        cost = report["per_strategy"]["A"]["performance"]["cost_estimate_usd"]
+        cost = report["overall"]["performance"]["cost_estimate_usd"]
         self.assertAlmostEqual(cost["observed_cost_usd"], 0.0002)
         self.assertAlmostEqual(cost["projected_cost_usd"], 0.002)
+        subgroup_cost = report["per_strategy"]["A"]["performance"]["cost_estimate_usd"]
+        self.assertIsNone(subgroup_cost["projected_cost_usd"])
 
     def test_cost_requires_both_rates(self):
         with self.assertRaisesRegex(ValueError, "both"):
