@@ -267,6 +267,21 @@ class AnalysisTests(unittest.TestCase):
         self.assertIsNone(agreement["exact_record_agreement"])
         self.assertEqual(agreement["compared_pairs"], 0)
 
+    def test_run_statistics_summarize_three_runs_without_pooling_records(self):
+        correct = dict(self.expected)
+        wrong = dict(self.expected, claim_type="theft")
+        records = [
+            make_record("T1", self.expected, correct, strategy="A", run=1),
+            make_record("T1", self.expected, wrong, strategy="A", run=2),
+            make_record("T1", self.expected, correct, strategy="A", run=3),
+        ]
+        stats = analyze_records(records)["run_statistics"]["A"]
+        metric = stats["metrics"]["record_exact_match"]
+        self.assertEqual(stats["run_count"], 3)
+        self.assertEqual(metric["observed_runs"], 3)
+        self.assertAlmostEqual(metric["mean"], 2 / 3)
+        self.assertAlmostEqual(metric["population_std_dev"], 0.4714045208)
+
     def test_percentile_handles_empty_single_and_interpolation(self):
         self.assertIsNone(_percentile([], 0.5))
         self.assertEqual(_percentile([4], 0.95), 4)
