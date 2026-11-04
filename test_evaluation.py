@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from evaluation import load_dataset, run_evaluation
+from evaluation import DEFAULT_OUTPUT_DIR, load_dataset, run_evaluation
 from validator import FIELDS
 
 
@@ -24,6 +24,12 @@ def valid_reply():
 
 
 class EvaluationTests(unittest.TestCase):
+    def test_default_output_dir_is_isolated_from_historical_logs(self):
+        self.assertEqual(
+            DEFAULT_OUTPUT_DIR,
+            Path(__file__).resolve().parent / "outputs" / "final_benchmark",
+        )
+
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
