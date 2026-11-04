@@ -130,19 +130,19 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(result["precision"], 1.0)
         self.assertEqual(result["recall"], 1.0)
 
-    def test_null_gold_and_non_null_prediction_is_unsupported(self):
+    def test_null_gold_and_non_null_prediction_is_counted_as_overprediction(self):
         expected = dict(self.expected, location=None)
         predicted = dict(self.expected, location="Mumbai")
         report = analyze_records([make_record("T1", expected, predicted)])
         reliability = report["per_strategy"]["A"]["reliability"]
-        self.assertEqual(reliability["unsupported_non_null_extraction_count"], 1)
+        self.assertEqual(reliability["gold_null_non_null_prediction_count"], 1)
         self.assertAlmostEqual(reliability["gold_null_overprediction_rate"], 1 / 6)
 
-    def test_wrong_non_null_value_is_incorrect_but_not_null_to_value_hallucination(self):
+    def test_wrong_non_null_value_is_incorrect_but_not_gold_null_overprediction(self):
         predicted = dict(self.expected, location="Bandra")
         report = analyze_records([make_record("T1", self.expected, predicted)])
         reliability = report["per_strategy"]["A"]["reliability"]
-        self.assertEqual(reliability["unsupported_non_null_extraction_count"], 0)
+        self.assertEqual(reliability["gold_null_non_null_prediction_count"], 0)
         self.assertEqual(reliability["gold_null_overprediction_rate"], 0.0)
         location = report["per_strategy"]["A"]["field_metrics"]["location"]
         self.assertEqual(location["incorrect_non_null_count"], 1)
