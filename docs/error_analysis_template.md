@@ -49,3 +49,16 @@ For each strategy, report:
 ## Source-grounded hallucination check
 
 The automated `gold_null_overprediction_rate` is not a source-grounded hallucination metric. For any suspected hallucination, compare each populated prediction directly with the original message and record the exact supporting text or write “no supporting text found”. A populated value where the gold label is null may indicate a label omission rather than a model hallucination; adjudicate that distinction before counting it.
+
+
+## Independent label review
+
+Use `data/independent_review_template.csv` for a blind review of 20 sampled messages. The reviewer should label all nine fields independently, without seeing the gold `expected` values. They must enter the literal `null` for every field they judge to be unstated; blank cells are incomplete and are rejected by the comparison script. The confidence and notes columns should be completed to explain uncertain decisions.
+
+After the reviewer returns the completed worksheet, place it at the template path or pass its path to:
+
+```bash
+python scripts/compare_independent_review.py
+```
+
+The script reports field-level and exact-record agreement and lists every disagreement. Review disagreements with the independent reviewer and document any adjudication. Do not report agreement until the reviewer has actually completed the blind review.
