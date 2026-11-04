@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 
 from analysis import (
+    DEFAULT_INPUT,
+    DEFAULT_OUTPUT_DIR,
     EXTRACTION_FIELDS,
     _classification_metrics,
     _field_metrics,
@@ -45,6 +47,17 @@ def make_record(record_id, expected=None, predicted=None, strategy="A", run=1, *
 
 
 class AnalysisTests(unittest.TestCase):
+    def test_default_paths_target_final_benchmark(self):
+        project_root = Path(__file__).resolve().parent
+        self.assertEqual(
+            DEFAULT_INPUT,
+            project_root / "outputs" / "final_benchmark" / "raw_responses.jsonl",
+        )
+        self.assertEqual(
+            DEFAULT_OUTPUT_DIR,
+            project_root / "outputs" / "final_benchmark" / "analysis",
+        )
+
     def setUp(self):
         self.expected = {
             "claim_type": "own_damage",
