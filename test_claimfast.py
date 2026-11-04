@@ -228,6 +228,38 @@ class ValidateTests(unittest.TestCase):
         data["estimated_amount_inr"] = True
         self.assertTrue(validate_claim(data))
 
+    def test_negative_amount_is_rejected(self):
+        data = self.good()
+        data["estimated_amount_inr"] = -1
+        self.assertIn(
+            "estimated_amount_inr must be a non-negative integer or null",
+            validate_claim(data),
+        )
+
+    def test_incident_date_requires_exact_iso_format(self):
+        for value in ("2026-1-01", "2026-01-1", "2026-02-30", 20261104):
+            with self.subTest(value=value):
+                data = self.good()
+                data["incident_date"] = value
+                self.assertIn(
+                    "incident_date must be a valid YYYY-MM-DD date or null",
+                    validate_claim(data),
+                )
+
+    def test_unhashable_enum_values_are_reported_without_crashing(self):
+        data = self.good()
+        data["claim_type"] = ["theft"]
+        data["urgency"] = {"level": "high"}
+        problems = validate_claim(data)
+        self.assertTrue(any(problem.startswith("claim_type") for problem in problems))
+        self.assertTrue(any(problem.startswith("urgency") for problem in problems))
+
+    def test_non_object_claim_data_is_reported(self):
+        self.assertEqual(
+            validate_claim(["not", "an", "object"]),
+            ["Claim data must be a JSON object"],
+        )
+
     def test_false_and_null_are_both_allowed(self):
         data = self.good()
         data["police_report_filed"] = False
