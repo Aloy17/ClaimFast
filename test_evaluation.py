@@ -271,6 +271,26 @@ class EvaluationTests(unittest.TestCase):
             )
 
 
+    def test_resume_rejects_changed_prompt_fingerprint(self):
+        model = Mock(return_value=self.fake_model_result())
+        run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+
+        second_model = Mock(return_value=self.fake_model_result())
+        with patch(
+            "evaluation.build_strategy_messages",
+            return_value=[{"role": "user", "content": "A changed prompt"}],
+        ):
+            with self.assertRaisesRegex(ValueError, "fingerprints"):
+                run_evaluation(
+                    "A", 1, self.dataset_path, self.output_dir,
+                    model_call=second_model,
+                )
+
+        model.assert_called_once()
+        second_model.assert_not_called()
+
     def test_resume_rejects_changed_dataset_fingerprint(self):
         first_model = Mock(return_value=self.fake_model_result())
         run_evaluation(
