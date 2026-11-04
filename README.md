@@ -30,6 +30,9 @@ Missing information must be returned as `null`. `false` means the message explic
 - `data/dev.jsonl`: 20 development records used for prompt development
 - `data/test.jsonl`: 60 held-out test records reserved for evaluation
 - `data/labelling_guide.md`: dataset labelling rules and ambiguous-case decisions
+- `data/independent_review_template.csv`: blinded worksheet for an independent reviewer to label 20 sampled messages
+- `docs/prompt_library.md`: documented prompt strategies and the current shared prompts
+- `docs/error_analysis_template.md`: post-benchmark failure categorisation and source-grounded review template
 - `.env.example`: template for the Groq API key
 - `requirements.txt`: Python dependencies
 
@@ -171,6 +174,7 @@ For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.0
 
 ### Pending
 
+- Independent second-person review of the 20-record worksheet (must be completed by a real reviewer; do not fabricate agreement)
 - Approved full benchmark and experiment results
 - Comparative analysis of prompt strategies
 - Production prompt selection
