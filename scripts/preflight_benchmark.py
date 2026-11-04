@@ -1,7 +1,12 @@
 """Offline pre-benchmark integrity checks. This script never calls the provider."""
 
 import hashlib
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from evaluation import (
     DEFAULT_DATASET,
@@ -15,7 +20,6 @@ from evaluation import (
 )
 from groq_client import MODEL
 
-ROOT = Path(__file__).resolve().parents[1]
 DEV_DATASET = ROOT / "data" / "dev.jsonl"
 EXPECTED_COUNTS = {"dev": 20, "test": 60}
 EXPECTED_STRATEGIES = ("A", "B1", "B2", "B3", "C")
@@ -27,6 +31,7 @@ def expected_ids(prefix, count):
 
 
 def inspect_dataset(path, prefix, expected_count):
+    path = Path(path)
     records = load_dataset(path)
     actual_ids = {record["id"] for record in records}
     required_ids = expected_ids(prefix, expected_count)
