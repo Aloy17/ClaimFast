@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from evaluation import load_dataset, run_evaluation
+from evaluation import DEFAULT_OUTPUT_DIR, load_dataset, run_evaluation
 from validator import FIELDS
 
 
@@ -24,6 +24,12 @@ def valid_reply():
 
 
 class EvaluationTests(unittest.TestCase):
+    def test_default_output_dir_is_isolated_from_historical_logs(self):
+        self.assertEqual(
+            DEFAULT_OUTPUT_DIR,
+            Path(__file__).resolve().parent / "outputs" / "final_benchmark",
+        )
+
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
@@ -85,6 +91,43 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exactly"):
             load_dataset(self.dataset_path)
 
+    def test_load_dataset_rejects_invalid_gold_enum(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["claim_type"] = ["own_damage"]
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "invalid expected labels.*claim_type"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_negative_gold_amount(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["estimated_amount_inr"] = -10
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "invalid expected labels.*estimated_amount_inr"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_noncanonical_gold_date(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["incident_date"] = "2026-1-02"
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "invalid expected labels.*incident_date"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_injury_with_non_high_urgency(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["injury_reported"] = True
+        invalid["expected"]["urgency"] = "medium"
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "injury_reported is true"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_unsafe_vehicle_with_non_high_urgency(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["message"] = "My vehicle is not safe to drive after the accident."
+        invalid["expected"]["urgency"] = "medium"
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "unsafe or undrivable vehicle"):
+            load_dataset(self.dataset_path)
+
     def test_success_writes_raw_jsonl_and_csv(self):
         model = Mock(return_value=self.fake_model_result())
         result = run_evaluation(
@@ -131,6 +174,44 @@ class EvaluationTests(unittest.TestCase):
         model.assert_called_once()
         lines = first["raw_path"].read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 1)
+
+    def test_api_error_is_retried_on_resume_and_success_supersedes_it(self):
+        error = RuntimeError("temporary provider failure")
+        error.groq_metadata = {"api_status_code": 429}
+        model = Mock(side_effect=[error, self.fake_model_result()])
+
+        first = run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+        second = run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+
+        self.assertEqual(first["processed"], 1)
+        self.assertEqual(second["processed"], 1)
+        self.assertEqual(second["retried"], 1)
+        self.assertEqual(second["skipped"], 0)
+        self.assertEqual(model.call_count, 2)
+
+        attempts = [
+            json.loads(line)
+            for line in first["raw_path"].read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertEqual(len(attempts), 2)
+        self.assertIsNotNone(attempts[0]["api_error"])
+        self.assertIsNone(attempts[1]["api_error"])
+        self.assertTrue(attempts[1]["validation_passed"])
+
+    def test_successful_evaluation_is_still_skipped_on_resume(self):
+        model = Mock(return_value=self.fake_model_result())
+        run_evaluation("A", 1, self.dataset_path, self.output_dir, model_call=model)
+        resumed = run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+        self.assertEqual(resumed["processed"], 0)
+        self.assertEqual(resumed["skipped"], 1)
+        self.assertEqual(resumed["retried"], 0)
+        model.assert_called_once()
 
     def test_different_run_number_is_not_skipped(self):
         model = Mock(return_value=self.fake_model_result())
@@ -189,6 +270,26 @@ class EvaluationTests(unittest.TestCase):
                 "A", 0, self.dataset_path, self.output_dir, model_call=Mock()
             )
 
+
+    def test_resume_rejects_changed_prompt_fingerprint(self):
+        model = Mock(return_value=self.fake_model_result())
+        run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+
+        second_model = Mock(return_value=self.fake_model_result())
+        with patch(
+            "evaluation.build_strategy_messages",
+            return_value=[{"role": "user", "content": "A changed prompt"}],
+        ):
+            with self.assertRaisesRegex(ValueError, "fingerprints"):
+                run_evaluation(
+                    "A", 1, self.dataset_path, self.output_dir,
+                    model_call=second_model,
+                )
+
+        model.assert_called_once()
+        second_model.assert_not_called()
 
     def test_resume_rejects_changed_dataset_fingerprint(self):
         first_model = Mock(return_value=self.fake_model_result())

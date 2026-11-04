@@ -228,6 +228,38 @@ class ValidateTests(unittest.TestCase):
         data["estimated_amount_inr"] = True
         self.assertTrue(validate_claim(data))
 
+    def test_negative_amount_is_rejected(self):
+        data = self.good()
+        data["estimated_amount_inr"] = -1
+        self.assertIn(
+            "estimated_amount_inr must be a non-negative integer or null",
+            validate_claim(data),
+        )
+
+    def test_incident_date_requires_exact_iso_format(self):
+        for value in ("2026-1-01", "2026-01-1", "2026-02-30", 20261104):
+            with self.subTest(value=value):
+                data = self.good()
+                data["incident_date"] = value
+                self.assertIn(
+                    "incident_date must be a valid YYYY-MM-DD date or null",
+                    validate_claim(data),
+                )
+
+    def test_unhashable_enum_values_are_reported_without_crashing(self):
+        data = self.good()
+        data["claim_type"] = ["theft"]
+        data["urgency"] = {"level": "high"}
+        problems = validate_claim(data)
+        self.assertTrue(any(problem.startswith("claim_type") for problem in problems))
+        self.assertTrue(any(problem.startswith("urgency") for problem in problems))
+
+    def test_non_object_claim_data_is_reported(self):
+        self.assertEqual(
+            validate_claim(["not", "an", "object"]),
+            ["Claim data must be a JSON object"],
+        )
+
     def test_false_and_null_are_both_allowed(self):
         data = self.good()
         data["police_report_filed"] = False
@@ -300,6 +332,24 @@ class PromptTests(unittest.TestCase):
             "This includes an injured passenger in the insured vehicle",
             SYSTEM_PROMPT,
         )
+
+    def test_shared_prompt_covers_suspected_theft_in_fnol_context(self):
+        self.assertIn("suspected theft", SYSTEM_PROMPT)
+        self.assertIn("insurance claim or FNOL context", SYSTEM_PROMPT)
+        from prompts import REASONING_GUIDANCE
+        self.assertIn("reported missing", REASONING_GUIDANCE.lower())
+        self.assertIn("suspected theft", REASONING_GUIDANCE.lower())
+
+    def test_shared_prompt_applies_total_loss_precedence(self):
+        self.assertIn("total_loss is the primary claim_type", SYSTEM_PROMPT)
+        self.assertIn("even if third-party harm is also reported", SYSTEM_PROMPT)
+
+    def test_all_strategies_inherit_shared_claim_type_rules(self):
+        for strategy in ("A", "B1", "B2", "B3", "C"):
+            with self.subTest(strategy=strategy):
+                prompt = build_strategy_messages(strategy, "Vehicle missing after FNOL.")
+                self.assertIn("suspected theft", prompt[0]["content"].lower())
+                self.assertIn("total_loss is the primary claim_type", prompt[0]["content"])
 
     def test_reasoning_guidance_checks_third_party_harm(self):
         from prompts import REASONING_GUIDANCE

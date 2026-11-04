@@ -96,6 +96,9 @@ def parse_strategy_response(text, strategy):
 
 def validate_claim(data, claim_text=None):
     """Validate extracted fields and urgency against the original claim when supplied."""
+    if not isinstance(data, dict):
+        return ["Claim data must be a JSON object"]
+
     problems = []
 
     for field in FIELDS:
@@ -105,9 +108,15 @@ def validate_claim(data, claim_text=None):
         if key not in FIELDS:
             problems.append("Unexpected field: " + str(key))
 
-    if "claim_type" in data and data["claim_type"] not in CLAIM_TYPES:
+    if "claim_type" in data and (
+        not isinstance(data["claim_type"], str)
+        or data["claim_type"] not in CLAIM_TYPES
+    ):
         problems.append("claim_type is not an allowed value: " + repr(data["claim_type"]))
-    if "urgency" in data and data["urgency"] not in URGENCIES:
+    if "urgency" in data and (
+        not isinstance(data["urgency"], str)
+        or data["urgency"] not in URGENCIES
+    ):
         problems.append("urgency is not an allowed value: " + repr(data["urgency"]))
 
     for field in ("policy_number", "location"):
@@ -118,6 +127,11 @@ def validate_claim(data, claim_text=None):
     date_value = data.get("incident_date")
     if date_value is not None:
         try:
+            if (
+                not isinstance(date_value, str)
+                or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_value)
+            ):
+                raise ValueError
             datetime.strptime(date_value, "%Y-%m-%d")
         except (TypeError, ValueError):
             problems.append("incident_date must be a valid YYYY-MM-DD date or null")
@@ -127,8 +141,10 @@ def validate_claim(data, claim_text=None):
         problems.append("vehicle_reg_no must be uppercase letters and digits only, or null")
 
     amount = data.get("estimated_amount_inr")
-    if amount is not None and (isinstance(amount, bool) or not isinstance(amount, int)):
-        problems.append("estimated_amount_inr must be an integer or null")
+    if amount is not None and (
+        isinstance(amount, bool) or not isinstance(amount, int) or amount < 0
+    ):
+        problems.append("estimated_amount_inr must be a non-negative integer or null")
 
     for field in ("injury_reported", "police_report_filed"):
         value = data.get(field)

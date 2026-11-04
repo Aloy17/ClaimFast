@@ -70,6 +70,35 @@ class GroqMetadataTests(unittest.TestCase):
             "900",
         )
 
+    def test_successful_request_uses_fixed_benchmark_settings(self):
+        completion = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))],
+            usage=None,
+        )
+        create = Mock(return_value=SimpleNamespace(
+            headers={},
+            status_code=200,
+            parse=Mock(return_value=completion),
+        ))
+        client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    with_raw_response=SimpleNamespace(create=create)
+                )
+            )
+        )
+
+        with patch("groq_client.get_client", return_value=client):
+            ask_model([{"role": "user", "content": "hello"}])
+
+        create.assert_called_once_with(
+            model="openai/gpt-oss-20b",
+            messages=[{"role": "user", "content": "hello"}],
+            temperature=0,
+            reasoning_effort="low",
+            max_completion_tokens=2000,
+        )
+
     def test_failed_request_attaches_response_metadata_and_reraises(self):
         request = httpx.Request("POST", "https://api.groq.com/test")
         response = httpx.Response(

@@ -95,7 +95,7 @@ Run the automated test suite:
 python -m unittest -v
 ```
 
-The test suite currently contains **92 automated tests**. It uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota.
+The automated test suite uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota. Run the command above to see the current test count and results.
 
 ## Run an evaluation
 
@@ -105,7 +105,7 @@ Run one strategy and run number against the held-out test set:
 python evaluation.py --strategy A --run 1
 ```
 
-Available strategies are `A`, `B1`, `B2`, `B3` and `C`. The runner writes the canonical append-only log to `outputs/raw_responses.jsonl` and regenerates `outputs/results.csv`. It records model settings, token usage, latency, errors, available HTTP rate-limit metadata and dataset/prompt fingerprints. Re-running the same strategy/run resumes missing records and refuses to resume if the dataset or prompt configuration has changed.
+Available strategies are `A`, `B1`, `B2`, `B3` and `C`. By default, the runner writes a new formal experiment to `outputs/final_benchmark/raw_responses.jsonl` and regenerates `outputs/final_benchmark/results.csv`. This deliberately keeps the corrected-prompt benchmark separate from historical logs in `outputs/benchmark/` and legacy logs in `outputs/`. It records model settings, token usage, latency, errors, available HTTP rate-limit metadata and dataset/prompt fingerprints. Re-running the same strategy/run resumes missing records and refuses to resume if the dataset or prompt configuration has changed.
 
 For a separate experiment output directory, pass `--output-dir`. Keep historical logs: do not mix older records without fingerprints into a new formal benchmark run. The evaluation runner makes real provider requests; run it only when the benchmark is approved.
 
@@ -128,10 +128,10 @@ Useful pages:
 Analyse a saved log without making any model/API calls:
 
 ```bash
-python analysis.py --input outputs/raw_responses.jsonl --output-dir outputs/analysis
+python analysis.py
 ```
 
-The command writes:
+By default, analysis reads `outputs/final_benchmark/raw_responses.jsonl` and writes reports to `outputs/final_benchmark/analysis/`. Use `--input` and `--output-dir` to select another saved experiment. The command writes:
 
 - `analysis.json`: detailed overall, per-strategy and per-run metrics
 - `summary.csv`: a compact comparison table
@@ -141,7 +141,7 @@ The report includes claim-type and urgency accuracy, macro precision/recall/F1, 
 For a cost estimate, supply the current provider prices in USD per million tokens:
 
 ```bash
-python analysis.py --input outputs/raw_responses.jsonl --output-dir outputs/analysis --input-cost-per-million 0.075 --output-cost-per-million 0.30 --projected-calls 900
+python analysis.py --input-cost-per-million 0.075 --output-cost-per-million 0.30 --projected-calls 900
 ```
 
 For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.075 per million input tokens** and **$0.30 per million output tokens**. Check the [current Groq model pricing](https://console.groq.com/docs/models) before using the estimate, because prices can change. Prices are passed as arguments rather than hard-coded. The projected estimate extrapolates the observed average tokens per request to the requested call count; it is an estimate, not a provider quote. It is only representative when the observed sample reflects the planned experiment. Subgroup reports show observed costs; the projected cost is reported once for the combined input log.

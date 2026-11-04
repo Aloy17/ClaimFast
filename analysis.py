@@ -22,11 +22,14 @@ EXTRACTION_FIELDS = tuple(
 )
 INVALID_LABEL = "__invalid_prediction__"
 
+ROOT = Path(__file__).resolve().parent
+DEFAULT_INPUT = ROOT / "outputs" / "final_benchmark" / "raw_responses.jsonl"
+DEFAULT_OUTPUT_DIR = ROOT / "outputs" / "final_benchmark" / "analysis"
+
 
 def load_experiment_log(path):
-    """Load a JSONL experiment log, rejecting malformed or duplicate entries."""
-    records = []
-    seen = set()
+    """Load an append-only log and retain the latest attempt per logical evaluation."""
+    latest = {}
     with Path(path).open("r", encoding="utf-8") as file:
         for line_number, line in enumerate(file, start=1):
             if not line.strip():
@@ -68,17 +71,19 @@ def load_experiment_log(path):
                 raise ValueError(f"Invalid predicted object on line {line_number}")
 
             key = (item["strategy"], item["run_number"], item["record_id"])
-            if key in seen:
+            previous = latest.get(key)
+            if previous is not None and previous["expected"] != item["expected"]:
                 raise ValueError(
-                    "Duplicate strategy/run_number/record_id entry: "
+                    "Conflicting expected labels across attempts for "
                     f"{key[0]}/{key[1]}/{key[2]}"
                 )
-            seen.add(key)
-            records.append(item)
+            # Later JSONL entries are retries and supersede earlier attempts
+            # for metrics, while the original attempts remain in the raw log.
+            latest[key] = item
 
-    if not records:
+    if not latest:
         raise ValueError("Experiment log contains no records")
-    return records
+    return list(latest.values())
 
 
 def _safe_divide(numerator, denominator):
@@ -571,11 +576,11 @@ def main():
         description="Analyse saved ClaimFast experiment logs without making API calls."
     )
     parser.add_argument(
-        "--input", type=Path, default=Path("outputs/raw_responses.jsonl"),
-        help="Input experiment JSONL log",
+        "--input", type=Path, default=DEFAULT_INPUT,
+        help="Input experiment JSONL log (default: outputs/final_benchmark/raw_responses.jsonl)",
     )
     parser.add_argument(
-        "--output-dir", type=Path, default=Path("outputs/analysis"),
+        "--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR,
         help="Directory for analysis.json and summary.csv",
     )
     parser.add_argument(
