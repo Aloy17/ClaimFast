@@ -128,6 +128,23 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsafe or undrivable vehicle"):
             load_dataset(self.dataset_path)
 
+    def test_load_dataset_rejects_other_explicit_unsafe_vehicle_phrases(self):
+        phrases = (
+            "The car is blocking the road.",
+            "The car is stuck in the middle of the road and cannot be moved.",
+            "The vehicle cannot be moved after the collision.",
+        )
+        for phrase in phrases:
+            with self.subTest(phrase=phrase):
+                invalid = json.loads(json.dumps(self.record))
+                invalid["message"] = phrase
+                invalid["expected"]["urgency"] = "medium"
+                self.dataset_path.write_text(
+                    json.dumps(invalid) + "\n", encoding="utf-8"
+                )
+                with self.assertRaisesRegex(ValueError, "unsafe or undrivable vehicle"):
+                    load_dataset(self.dataset_path)
+
     def test_success_writes_raw_jsonl_and_csv(self):
         model = Mock(return_value=self.fake_model_result())
         result = run_evaluation(
