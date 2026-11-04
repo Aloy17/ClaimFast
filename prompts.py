@@ -112,12 +112,12 @@ def build_few_shot_messages(claim, k):
 REASONING_GUIDANCE = """DECISION CHECKS:
 1. Identify the incident the customer is asking the insurer to register. For multiple incidents or forwarded messages, use only the incident relevant to the requested claim.
 2. Decide whether the message describes a new insurance claim/FNOL rather than a policy enquiry or status request.
-3. Classify the loss using the claim_type definitions. Another vehicle being mentioned is not enough for third_party_liability: actual third-party injury or property damage must be reported. A passenger other than the policyholder is a third party.
-4. Apply the single-label precedence rule: if the insured vehicle is destroyed or beyond repair, choose total_loss as the primary claim_type even when third-party harm is also reported. Preserve injury information in injury_reported.
-5. Determine urgency independently from claim_type. Any reported injury requires high urgency. An explicitly unsafe or undrivable vehicle also requires high urgency. A total_loss label alone does not imply high urgency; if neither high-urgency condition is reported, use medium for a genuine loss. Use low for minor glass-only matters and not_a_claim.
+3. Classify the loss using the claim_type definitions. Mere involvement of another vehicle is not enough for third_party_liability. Require actual third-party property damage or injury to a person other than the policyholder, including an insured-vehicle passenger.
+4. Apply the single-label precedence rule: if the insured vehicle is destroyed or beyond repair, use total_loss as the primary claim_type even when third-party harm is also reported. Preserve injury information in injury_reported.
+5. Determine urgency independently from claim_type. Any reported injury requires high urgency. An explicitly unsafe or undrivable vehicle also requires high urgency. Do not set urgency to high solely because the claim is total_loss. If neither high-urgency condition is reported, use medium for a genuine loss. Use low for minor glass-only matters and not_a_claim.
 6. Extract policy number, exact incident date, location, registration, and amount only when supported by the relevant incident text. Do not transfer values from an unrelated earlier incident.
 7. For injury_reported and police_report_filed, use true only when reported, false only when explicitly denied, and null when not mentioned. Do not treat police being present or informed as proof that a report/FIR was filed.
-8. Treat a missing vehicle or part as suspected theft only in an insurance claim/FNOL context, even if theft is not confirmed. Do not infer that a police report was filed.
+8. Treat a vehicle or part reported missing as suspected theft only in an insurance claim or FNOL context, even if theft is not confirmed. Do not infer that a police report was filed.
 9. Check that every extracted value is traceable to the relevant incident and that all nine output keys and value types match the required schema.
 
 Inside the <reasoning> block, provide a short, evidence-based decision summary—not hidden internal deliberation. State the relevant incident, the decisive claim-type evidence, the urgency trigger (or why no high-urgency trigger is stated), and any important extraction uncertainty. Do not invent facts or add information absent from the message."""
