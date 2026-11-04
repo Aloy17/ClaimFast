@@ -30,6 +30,11 @@ Missing information must be returned as `null`. `false` means the message explic
 - `data/dev.jsonl`: 20 development records used for prompt development
 - `data/test.jsonl`: 60 held-out test records reserved for evaluation
 - `data/labelling_guide.md`: dataset labelling rules and ambiguous-case decisions
+- `data/independent_review_template.csv`: blinded worksheet for an independent reviewer to label 20 sampled messages
+- `scripts/compare_independent_review.py`: compares a completed independent review with the gold labels and reports agreement and disagreements
+- `scripts/preflight_benchmark.py`: checks dataset IDs/counts, model settings, prompt fingerprints and the planned evaluation count without making API calls
+- `docs/prompt_library.md`: documented prompt strategies and the current shared prompts
+- `docs/error_analysis_template.md`: post-benchmark failure categorisation and source-grounded review template
 - `.env.example`: template for the Groq API key
 - `requirements.txt`: Python dependencies
 
@@ -97,6 +102,16 @@ python -m unittest -v
 
 The automated test suite uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota. Run the command above to see the current test count and results.
 
+## Offline benchmark preflight
+
+Before requesting approval to start the formal benchmark, run the offline integrity check:
+
+```bash
+python scripts/preflight_benchmark.py
+```
+
+It validates the 20 development and 60 held-out records, confirms the five strategy names, prints the dataset and per-strategy prompt fingerprints, and confirms the planned count of 900 logical evaluations (5 strategies × 3 runs × 60 test records). It also reports whether formal output files already exist. It does not call Groq, check account quota, or start an evaluation.
+
 ## Run an evaluation
 
 Run one strategy and run number against the held-out test set:
@@ -123,6 +138,24 @@ Useful pages:
 - [Usage graphs](https://console.groq.com/dashboard/usage)
 - [Groq rate limits documentation](https://console.groq.com/docs/rate-limits)
 
+## Independent label review
+
+Ask a second person to label the 20 messages in `data/independent_review_template.csv` without showing them the gold labels. They should fill all nine reviewer fields, enter the literal `null` when a value is not stated, and add confidence and notes for uncertain cases.
+
+After receiving the completed worksheet, run:
+
+```bash
+python scripts/compare_independent_review.py
+```
+
+To compare a worksheet saved elsewhere, pass its path:
+
+```bash
+python scripts/compare_independent_review.py /path/to/completed_review.csv
+```
+
+The script reports per-field agreement, exact-record agreement and each disagreement. Discuss and document disagreements with the reviewer. Do not claim an independent review or agreement rate until a real second reviewer has completed the worksheet.
+
 ## Analyse saved results
 
 Analyse a saved log without making any model/API calls:
@@ -136,7 +169,7 @@ By default, analysis reads `outputs/final_benchmark/raw_responses.jsonl` and wri
 - `analysis.json`: detailed overall, per-strategy and per-run metrics
 - `summary.csv`: a compact comparison table
 
-The report includes claim-type and urgency accuracy, macro precision/recall/F1, per-class metrics and confusion matrices; exact match for each field and for the complete nine-field record; extraction micro precision/recall/F1; JSON parseability, strict response-format compliance and validation pass rates; unsupported non-null extractions; injury recall and high-urgency recall; run-to-run agreement; token totals/averages; and mean, median and p95 latency.
+The report includes claim-type and urgency accuracy, macro precision/recall/F1, per-class metrics and confusion matrices; exact match for each field and for the complete nine-field record; extraction micro precision/recall/F1; JSON parseability, strict response-format compliance and validation pass rates; gold-null overprediction rate; injury recall and high-urgency recall; run-to-run agreement; token totals/averages; and mean, median and p95 latency. Run-level metrics are also summarized across the available runs per strategy using their mean and population standard deviation; repeated predictions are not pooled as independent samples.
 
 For a cost estimate, supply the current provider prices in USD per million tokens:
 
@@ -146,7 +179,7 @@ python analysis.py --input-cost-per-million 0.075 --output-cost-per-million 0.30
 
 For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.075 per million input tokens** and **$0.30 per million output tokens**. Check the [current Groq model pricing](https://console.groq.com/docs/models) before using the estimate, because prices can change. Prices are passed as arguments rather than hard-coded. The projected estimate extrapolates the observed average tokens per request to the requested call count; it is an estimate, not a provider quote. It is only representative when the observed sample reflects the planned experiment. Subgroup reports show observed costs; the projected cost is reported once for the combined input log.
 
-`json_valid` means the parser could extract a JSON object. `format_compliance` separately checks the entire response: strategies A/B1/B2/B3 must return only one JSON object with exactly the nine required keys, while strategy C must return only the required non-empty `<reasoning>` and `<answer>` blocks with the JSON object alone inside `<answer>`. Historical logs without the `format_compliant` field are treated as unobserved for this metric, not as failures.\n\nThe analysis treats `null` as unknown/not extracted and `false` as an explicit boolean value. An unsupported non-null extraction is counted when the gold value is `null` but the prediction is populated. Incorrect populated values where the gold value is also populated are reported separately. Macro averages include every allowed class, including classes absent from the sample. Run agreement compares parsed predictions for the same strategy and record across runs; API/parse failures are excluded from agreement pairs but remain in reliability denominators.
+`json_valid` means the parser could extract a JSON object. `format_compliance` separately checks the entire response: strategies A/B1/B2/B3 must return only one JSON object with exactly the nine required keys, while strategy C must return only the required non-empty `<reasoning>` and `<answer>` blocks with the JSON object alone inside `<answer>`. Historical logs without the `format_compliant` field are treated as unobserved for this metric, not as failures.\n\nThe analysis treats `null` as unknown/not extracted and `false` as an explicit boolean value. The `gold_null_overprediction_rate` counts populated extraction predictions where the gold value is `null`, divided by all populated extraction predictions. This is a gold-label consistency metric, not proof that a value is hallucinated: source-grounded hallucinations require checking the prediction against the original message. Incorrect populated values where the gold value is also populated are reported separately. Macro averages include every allowed class, including classes absent from the sample. Run agreement compares parsed predictions for the same strategy and record across runs; API/parse failures are excluded from agreement pairs but remain in reliability denominators.
 
 ## Troubleshooting
 
@@ -171,6 +204,7 @@ For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.0
 
 ### Pending
 
+- Independent second-person review of the 20-record worksheet (must be completed by a real reviewer; do not fabricate agreement)
 - Approved full benchmark and experiment results
 - Comparative analysis of prompt strategies
 - Production prompt selection

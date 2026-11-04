@@ -202,6 +202,10 @@ def validate_claim(data, claim_text=None):
         r"\bcannot drive\b",
         r"\bunable to drive\b",
         r"\bvehicle is immobilized\b",
+        r"\bblocking (?:the )?road\b",
+        r"\bstuck (?:in|on) the (?:middle of the )?road\b",
+        r"\bcannot be moved\b",
+        r"\bcan\x27t be moved\b",
     )
 
     if claim_text and data.get("urgency") != "high":

@@ -130,20 +130,20 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(result["precision"], 1.0)
         self.assertEqual(result["recall"], 1.0)
 
-    def test_null_gold_and_non_null_prediction_is_unsupported(self):
+    def test_null_gold_and_non_null_prediction_is_counted_as_overprediction(self):
         expected = dict(self.expected, location=None)
         predicted = dict(self.expected, location="Mumbai")
         report = analyze_records([make_record("T1", expected, predicted)])
         reliability = report["per_strategy"]["A"]["reliability"]
-        self.assertEqual(reliability["unsupported_non_null_extraction_count"], 1)
-        self.assertAlmostEqual(reliability["hallucination_rate"], 1 / 6)
+        self.assertEqual(reliability["gold_null_non_null_prediction_count"], 1)
+        self.assertAlmostEqual(reliability["gold_null_overprediction_rate"], 1 / 6)
 
-    def test_wrong_non_null_value_is_incorrect_but_not_null_to_value_hallucination(self):
+    def test_wrong_non_null_value_is_incorrect_but_not_gold_null_overprediction(self):
         predicted = dict(self.expected, location="Bandra")
         report = analyze_records([make_record("T1", self.expected, predicted)])
         reliability = report["per_strategy"]["A"]["reliability"]
-        self.assertEqual(reliability["unsupported_non_null_extraction_count"], 0)
-        self.assertEqual(reliability["hallucination_rate"], 0.0)
+        self.assertEqual(reliability["gold_null_non_null_prediction_count"], 0)
+        self.assertEqual(reliability["gold_null_overprediction_rate"], 0.0)
         location = report["per_strategy"]["A"]["field_metrics"]["location"]
         self.assertEqual(location["incorrect_non_null_count"], 1)
 
@@ -266,6 +266,21 @@ class AnalysisTests(unittest.TestCase):
         agreement = _run_agreement([make_record("T1", self.expected, self.expected)])
         self.assertIsNone(agreement["exact_record_agreement"])
         self.assertEqual(agreement["compared_pairs"], 0)
+
+    def test_run_statistics_summarize_three_runs_without_pooling_records(self):
+        correct = dict(self.expected)
+        wrong = dict(self.expected, claim_type="theft")
+        records = [
+            make_record("T1", self.expected, correct, strategy="A", run=1),
+            make_record("T1", self.expected, wrong, strategy="A", run=2),
+            make_record("T1", self.expected, correct, strategy="A", run=3),
+        ]
+        stats = analyze_records(records)["run_statistics"]["A"]
+        metric = stats["metrics"]["record_exact_match"]
+        self.assertEqual(stats["run_count"], 3)
+        self.assertEqual(metric["observed_runs"], 3)
+        self.assertAlmostEqual(metric["mean"], 2 / 3)
+        self.assertAlmostEqual(metric["population_std_dev"], 0.4714045208)
 
     def test_percentile_handles_empty_single_and_interpolation(self):
         self.assertIsNone(_percentile([], 0.5))

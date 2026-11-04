@@ -34,7 +34,7 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 - If another person is injured, or another person's vehicle or property is damaged, in an incident involving the insured vehicle, classify it as `third_party_liability`. The assignment says the policyholder may be liable; proven fault or an admission of liability is not required.
 - Do not classify a claim as `third_party_liability` merely because another vehicle or driver is mentioned. Actual third-party injury or property damage must be reported.
 - Do not infer fault, injury, or damage that is not stated. An injury to the policyholder alone does not establish third-party liability.
-- **Single-label overlap:** If the insured vehicle is destroyed or beyond repair, use `total_loss` as the primary `claim_type`, even if third-party harm is also reported. Capture any injury in `injury_reported` and set `urgency` to `high`.
+- **Single-label overlap:** If the insured vehicle is destroyed or beyond repair, use `total_loss` as the primary `claim_type`, even if third-party harm is also reported. Capture any injury in `injury_reported`. Determine `urgency` independently using the urgency rules below; `total_loss` alone does not make urgency high.
 
 ## 4. Urgency rules
 
@@ -44,9 +44,12 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 
 **Important:** Any mention of an injury makes urgency `high`, regardless of the claim type or other circumstances.
 
+**Total-loss urgency clarification:** A vehicle being beyond repair determines `claim_type = total_loss`, not urgency by itself. Set urgency to `high` only when an injury is reported or the message states that the vehicle is unsafe or undrivable. If neither condition is reported, use `medium` for a genuine total-loss claim. Do not infer that a vehicle is unsafe solely because it is beyond repair.
+
 ## 5. Missing and ambiguous information
 
 - Use `null` when a field is not stated or cannot be determined confidently.
+- Extract explicitly stated `policy_number` and `vehicle_reg_no` even when `claim_type` is `not_a_claim`; a policy enquiry or administrative request does not make those stated values missing. Keep `incident_date` and `estimated_amount_inr` as `null` when no relevant incident date or estimate is reported. For `location`, extract an explicitly stated location when it is relevant to the event described, even if no insurance claim has occurred; otherwise use `null`.
 - Do not invent policy numbers, dates, locations, registration numbers, or estimated amounts.
 - Use `true` for an explicitly reported condition.
 - Use `false` only when the message clearly denies that condition.

@@ -184,7 +184,7 @@ def _field_metrics(records, field):
         "true_positive": tp,
         "false_positive": fp,
         "false_negative": fn,
-        "unsupported_non_null_count": unsupported,
+        "gold_null_non_null_prediction_count": unsupported,
         "incorrect_non_null_count": incorrect_non_null,
     }
 
@@ -464,14 +464,15 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
             "parse_error_count": sum(bool(item.get("parse_error")) for item in group),
             "prediction_available_count": sum(isinstance(item.get("predicted"), dict) for item in group),
             "record_count": len(group),
-            "unsupported_non_null_extraction_count": unsupported,
+            "gold_null_non_null_prediction_count": unsupported,
             "predicted_non_null_extraction_count": predicted_non_null,
-            "hallucination_rate": _safe_divide(unsupported, predicted_non_null),
-            "hallucination_rate_definition": (
+            "gold_null_overprediction_rate": _safe_divide(unsupported, predicted_non_null),
+            "gold_null_overprediction_rate_definition": (
                 "Predicted non-null extraction values where the gold value is null, "
-                "divided by all predicted non-null extraction values. Wrong values "
-                "where gold is non-null are reported separately as incorrect "
-                "non-null extractions."
+                "divided by all predicted non-null extraction values. This measures "
+                "overprediction against the gold labels; it is not a source-grounded "
+                "hallucination rate. Wrong values where gold is non-null are reported "
+                "separately as incorrect non-null extractions."
             ),
         }
         reliability["injury_recall"] = _positive_class_recall(
@@ -504,6 +505,53 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
         f"{strategy}/run_{run_number}": summarize(group)
         for (strategy, run_number), group in sorted(runs.items())
     }
+
+    run_metric_getters = {
+        "record_exact_match": lambda result: result["record_exact_match"]["accuracy"],
+        "claim_type_accuracy": lambda result: result["classification"]["claim_type"]["accuracy"],
+        "claim_type_macro_f1": lambda result: result["classification"]["claim_type"]["macro_f1"],
+        "urgency_accuracy": lambda result: result["classification"]["urgency"]["accuracy"],
+        "urgency_macro_f1": lambda result: result["classification"]["urgency"]["macro_f1"],
+        "extraction_micro_f1": lambda result: result["extraction_micro"]["f1"],
+        "json_valid_rate": lambda result: result["reliability"]["json_valid"]["rate"],
+        "format_compliance_rate": lambda result: result["reliability"]["format_compliance"]["rate"],
+        "validation_pass_rate": lambda result: result["reliability"]["validation_passed"]["rate"],
+        "injury_recall": lambda result: result["reliability"]["injury_recall"]["recall"],
+        "high_urgency_recall": lambda result: result["reliability"]["high_urgency_recall"],
+        "mean_latency_seconds": lambda result: result["performance"]["latency_seconds"]["mean"],
+    }
+    run_statistics = {}
+    for strategy in sorted(strategies):
+        strategy_runs = [
+            metrics for key, metrics in per_run.items()
+            if key.startswith(strategy + "/run_")
+        ]
+        statistics = {}
+        for metric, getter in run_metric_getters.items():
+            values = [
+                value for result in strategy_runs
+                if (value := getter(result)) is not None
+            ]
+            mean = sum(values) / len(values) if values else None
+            standard_deviation = (
+                math.sqrt(sum((value - mean) ** 2 for value in values) / len(values))
+                if values else None
+            )
+            statistics[metric] = {
+                "mean": mean,
+                "population_std_dev": standard_deviation,
+                "observed_runs": len(values),
+            }
+        run_statistics[strategy] = {
+            "run_count": len(strategy_runs),
+            "metrics": statistics,
+            "note": (
+                "Mean and population standard deviation are calculated across "
+                "run-level metrics. This avoids treating repeated predictions "
+                "for the same test records as independent observations."
+            ),
+        }
+
     overall = summarize(records, projected_calls)
     return {
         "record_count": len(records),
@@ -511,6 +559,7 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
         "overall": overall,
         "per_strategy": per_strategy,
         "per_run": per_run,
+        "run_statistics": run_statistics,
         "run_agreement": _run_agreement(records),
         "metric_definitions": {
             "macro_average": "Unweighted mean across every allowed class in the schema.",
