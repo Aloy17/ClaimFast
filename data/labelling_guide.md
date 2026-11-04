@@ -34,7 +34,7 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 - If another person is injured, or another person's vehicle or property is damaged, in an incident involving the insured vehicle, classify it as `third_party_liability`. The assignment says the policyholder may be liable; proven fault or an admission of liability is not required.
 - Do not classify a claim as `third_party_liability` merely because another vehicle or driver is mentioned. Actual third-party injury or property damage must be reported.
 - Do not infer fault, injury, or damage that is not stated. An injury to the policyholder alone does not establish third-party liability.
-- **Single-label overlap:** If the insured vehicle is destroyed or beyond repair, use `total_loss` as the primary `claim_type`, even if third-party harm is also reported. Capture any injury in `injury_reported` and set `urgency` to `high`.
+- **Single-label overlap:** If the insured vehicle is destroyed or beyond repair, use `total_loss` as the primary `claim_type`, even if third-party harm is also reported. Capture any injury in `injury_reported`. Determine `urgency` independently using the urgency rules below; `total_loss` alone does not make urgency high.
 
 ## 4. Urgency rules
 
@@ -43,6 +43,8 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 - **low:** Minor or non-urgent matters, such as glass-only damage or a non-claim message.
 
 **Important:** Any mention of an injury makes urgency `high`, regardless of the claim type or other circumstances.
+
+**Total-loss urgency clarification:** A vehicle being beyond repair determines `claim_type = total_loss`, not urgency by itself. Set urgency to `high` only when an injury is reported or the message states that the vehicle is unsafe or undrivable. If neither condition is reported, use `medium` for a genuine total-loss claim. Do not infer that a vehicle is unsafe solely because it is beyond repair.
 
 ## 5. Missing and ambiguous information
 
