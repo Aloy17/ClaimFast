@@ -21,12 +21,12 @@ Missing information must be returned as `null`. `false` means the message explic
 ## Project files
 
 - `main.py`: command-line claim processing application
-- `groq_client.py`: communicates with the Groq API
+- `groq_client.py`: communicates with the Groq API and captures available response rate-limit metadata
 - `prompts.py`: zero-shot, few-shot (k=3, 5, 8) and reasoning-guided prompt builders
 - `validator.py`: parses model responses and validates extracted fields
 - `evaluation.py`: runs one prompt strategy/run against the held-out dataset and logs raw responses, metadata and fingerprints
 - `analysis.py`: calculates evaluation metrics and exports JSON/CSV reports from saved logs without API calls
-- `test_claimfast.py`, `test_evaluation.py`, `test_analysis.py`: automated tests that do not require an API key
+- `test_claimfast.py`, `test_groq_client.py`, `test_evaluation.py`, `test_analysis.py`: automated tests that do not require an API key
 - `data/dev.jsonl`: 20 development records used for prompt development
 - `data/test.jsonl`: 60 held-out test records reserved for evaluation
 - `data/labelling_guide.md`: dataset labelling rules and ambiguous-case decisions
@@ -81,7 +81,7 @@ The program displays the raw model response, whether validation passed, the extr
 
 1. `main.py` reads the user's claim message.
 2. `prompts.py` constructs the system message containing instructions, definitions and the required JSON format, along with the user's message.
-3. `groq_client.py` sends the request to Groq and returns the response text, latency and token counts.
+3. `groq_client.py` sends the request to Groq and returns the response text, latency, token counts and available rate-limit metadata.
 4. `validator.py` extracts the JSON object from the response, including JSON inside a code fence, and checks the fields and values.
 5. `main.py` displays the result. API errors, empty responses, malformed JSON and missing fields produce readable messages instead of crashing the application.
 
@@ -95,8 +95,7 @@ Run the automated test suite:
 python -m unittest -v
 ```
 
-The test suite currently contains **88 automated tests**. It uses a stand-in for the model, so it does not require your API key or consume your Groq API quota.
-
+The test suite currently contains **93 automated tests**. It uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota.
 
 ## Run an evaluation
 
@@ -106,9 +105,23 @@ Run one strategy and run number against the held-out test set:
 python evaluation.py --strategy A --run 1
 ```
 
-Available strategies are `A`, `B1`, `B2`, `B3` and `C`. The runner writes the canonical append-only log to `outputs/raw_responses.jsonl` and regenerates `outputs/results.csv`. It records model settings, token usage, latency, errors and dataset/prompt fingerprints. Re-running the same strategy/run resumes missing records and refuses to resume if the dataset or prompt configuration has changed.
+Available strategies are `A`, `B1`, `B2`, `B3` and `C`. The runner writes the canonical append-only log to `outputs/raw_responses.jsonl` and regenerates `outputs/results.csv`. It records model settings, token usage, latency, errors, available HTTP rate-limit metadata and dataset/prompt fingerprints. Re-running the same strategy/run resumes missing records and refuses to resume if the dataset or prompt configuration has changed.
 
 For a separate experiment output directory, pass `--output-dir`. Keep historical logs: do not mix older records without fingerprints into a new formal benchmark run. The evaluation runner makes real provider requests; run it only when the benchmark is approved.
+
+### Rate-limit monitoring
+
+For successful calls, the runner records the rate-limit headers returned with the final successful HTTP response. For failed calls, it records the final HTTP status, available rate-limit headers, `retry-after`, request ID and error text. The fields are stored in both `raw_responses.jsonl` and `results.csv`.
+
+The Groq SDK retries certain transient errors automatically. These logs capture the final response after the SDK's retry handling; they do **not** count or preserve every intermediate HTTP attempt. Therefore, the benchmark's logical evaluation count can be lower than the HTTP request count shown in Groq Metrics and Logs.
+
+Groq's documented response headers can expose remaining request capacity and per-minute token capacity. They do not provide a documented remaining-tokens-per-day header. When a daily token quota is exhausted, preserve the full 429 error text: Groq may include the daily limit, usage at rejection, requested tokens and a retry countdown. The Usage dashboard's graphs remain the source for historical consumption.
+
+Useful pages:
+
+- [Model limits](https://console.groq.com/settings/limits)
+- [Usage graphs](https://console.groq.com/dashboard/usage)
+- [Groq rate limits documentation](https://console.groq.com/docs/rate-limits)
 
 ## Analyse saved results
 
@@ -139,7 +152,7 @@ The analysis treats `null` as unknown/not extracted and `false` as an explicit b
 
 - **GROQ_API_KEY is missing**: `.env` is missing, or the application is not being run from the project folder.
 - **Groq rejected the API key**: The key is incorrect or has been deleted. Generate a new key and update `.env`.
-- **Rate limit reached**: Groq has temporarily restricted requests due to an API usage limit. Check your current model-specific limits in the Groq Console and retry when capacity is available.
+- **Rate limit reached**: Inspect the recorded HTTP status, `retry-after`, rate-limit headers and full provider error text. Also check your current model-specific limits in the Groq Console and retry when capacity is available.
 - **Empty response**: The model returned no usable text. This may happen because of output-token limits or a provider-side issue. Try again.
 
 ## Project status
@@ -153,7 +166,7 @@ The analysis treats `null` as unknown/not extracted and `false` as an explicit b
 - Dataset labelling guide
 - JSON parsing and output validation
 - Automated unit tests
-- Single-strategy evaluation runner with fingerprint-protected experiment logging
+- Single-strategy evaluation runner with fingerprint-protected experiment logging and rate-limit metadata
 - Offline metric calculation, report export and parameterized cost estimation
 
 ### Pending
