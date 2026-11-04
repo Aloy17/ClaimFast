@@ -6,8 +6,8 @@ SYSTEM_PROMPT = """You process motor insurance claim messages from customers in 
 claim_type (choose exactly one):
 - own_damage: the policyholder's insured vehicle is damaged, and no third-party injury or damage is reported that may create liability for the policyholder. Another vehicle being involved does not by itself make the claim third-party liability.
 - third_party_liability: another person's vehicle or property is damaged, or a person other than the policyholder is injured, in an incident involving the insured vehicle. This includes an injured passenger in the insured vehicle. The assignment's 'may be liable' condition does not require proven fault or an admission of liability. Do not infer injury or property damage that the message does not report.
-- theft: the vehicle or its parts were stolen.
-- total_loss: the vehicle is destroyed or damaged beyond repair.
+- theft: the vehicle or one of its parts has been stolen. In an insurance claim or FNOL context, treat a reported missing vehicle or part as suspected theft even when theft is not confirmed. A missing vehicle outside an insurance claim or FNOL context is not sufficient.
+- total_loss: the vehicle is destroyed or damaged beyond repair. When the insured vehicle is destroyed or beyond repair, total_loss is the primary claim_type even if third-party harm is also reported; capture injury separately and set urgency to high.
 - glass_only: only glass (windshield, windows) is damaged.
 - not_a_claim: the message is not an insurance claim, for example a question or a greeting.
 
