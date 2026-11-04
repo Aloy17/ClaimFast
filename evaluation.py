@@ -29,8 +29,9 @@ CSV_COLUMNS = [
     "dataset_fingerprint", "prompt_config_fingerprint",
     "temperature", "reasoning_effort", "max_completion_tokens",
     "json_valid", "validation_passed", "parse_error", "validation_errors",
-    "api_error", "latency_seconds", "prompt_tokens", "completion_tokens",
-    "total_tokens", "expected_json", "predicted_json",
+    "api_error", "api_status_code", "retry_after", "request_id",
+    "rate_limit_headers", "latency_seconds", "prompt_tokens",
+    "completion_tokens", "total_tokens", "expected_json", "predicted_json",
 ]
 
 
@@ -145,6 +146,10 @@ def _write_csv(records, csv_path):
             row["validation_errors"] = json.dumps(
                 record.get("validation_errors", []), ensure_ascii=False
             )
+            row["rate_limit_headers"] = json.dumps(
+                record.get("rate_limit_headers", {}), ensure_ascii=False,
+                sort_keys=True,
+            )
             row["expected_json"] = json.dumps(
                 record.get("expected"), ensure_ascii=False, sort_keys=True
             )
@@ -216,10 +221,12 @@ def run_evaluation(
         timestamp = datetime.now(timezone.utc).isoformat()
         result = None
         api_error = None
+        error_metadata = {}
         try:
             result = call_model(messages)
         except Exception as error:
-            api_error = f"{type(error).__name__}: {str(error)[:300]}"
+            api_error = f"{type(error).__name__}: {str(error)[:1000]}"
+            error_metadata = getattr(error, "groq_metadata", {}) or {}
 
         raw_text = result.get("text") if result else None
         parsed = None
@@ -231,6 +238,7 @@ def run_evaluation(
             if parse_error is None:
                 validation_errors = validate_claim(parsed, record["message"])
 
+        metadata = result if result is not None else error_metadata
         item = {
             "timestamp_utc": timestamp,
             "model": MODEL,
@@ -254,7 +262,11 @@ def run_evaluation(
             "parse_error": parse_error,
             "validation_errors": validation_errors,
             "api_error": api_error,
-            "latency_seconds": result.get("latency_seconds") if result else None,
+            "api_status_code": metadata.get("api_status_code"),
+            "retry_after": metadata.get("retry_after"),
+            "request_id": metadata.get("request_id"),
+            "rate_limit_headers": metadata.get("rate_limit_headers", {}),
+            "latency_seconds": metadata.get("latency_seconds"),
             "prompt_tokens": result.get("prompt_tokens") if result else None,
             "completion_tokens": result.get("completion_tokens") if result else None,
             "total_tokens": result.get("total_tokens") if result else None,
