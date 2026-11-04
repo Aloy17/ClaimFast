@@ -328,7 +328,9 @@ class AnalysisTests(unittest.TestCase):
             self.assertTrue(paths["csv_path"].exists())
             loaded = json.loads(paths["json_path"].read_text(encoding="utf-8"))
             self.assertEqual(loaded["record_count"], 1)
-            self.assertIn("strategy_or_run", paths["csv_path"].read_text(encoding="utf-8"))
+            summary_csv = paths["csv_path"].read_text(encoding="utf-8")
+            self.assertIn("strategy_or_run", summary_csv)
+            self.assertIn("format_compliance_rate", summary_csv)
 
     def test_all_extraction_fields_are_included(self):
         self.assertEqual(
