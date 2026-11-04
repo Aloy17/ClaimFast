@@ -169,6 +169,44 @@ class EvaluationTests(unittest.TestCase):
         lines = first["raw_path"].read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(lines), 1)
 
+    def test_api_error_is_retried_on_resume_and_success_supersedes_it(self):
+        error = RuntimeError("temporary provider failure")
+        error.groq_metadata = {"api_status_code": 429}
+        model = Mock(side_effect=[error, self.fake_model_result()])
+
+        first = run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+        second = run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+
+        self.assertEqual(first["processed"], 1)
+        self.assertEqual(second["processed"], 1)
+        self.assertEqual(second["retried"], 1)
+        self.assertEqual(second["skipped"], 0)
+        self.assertEqual(model.call_count, 2)
+
+        attempts = [
+            json.loads(line)
+            for line in first["raw_path"].read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertEqual(len(attempts), 2)
+        self.assertIsNotNone(attempts[0]["api_error"])
+        self.assertIsNone(attempts[1]["api_error"])
+        self.assertTrue(attempts[1]["validation_passed"])
+
+    def test_successful_evaluation_is_still_skipped_on_resume(self):
+        model = Mock(return_value=self.fake_model_result())
+        run_evaluation("A", 1, self.dataset_path, self.output_dir, model_call=model)
+        resumed = run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+        self.assertEqual(resumed["processed"], 0)
+        self.assertEqual(resumed["skipped"], 1)
+        self.assertEqual(resumed["retried"], 0)
+        model.assert_called_once()
+
     def test_different_run_number_is_not_skipped(self):
         model = Mock(return_value=self.fake_model_result())
         run_evaluation("A", 1, self.dataset_path, self.output_dir, model_call=model)
