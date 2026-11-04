@@ -72,6 +72,13 @@ def load_dataset(path=DEFAULT_DATASET):
                     "the nine ClaimFast fields"
                 )
 
+            label_problems = validate_claim(record["expected"], record["message"])
+            if label_problems:
+                raise ValueError(
+                    f"Record {record['id']} has invalid expected labels: "
+                    + "; ".join(label_problems)
+                )
+
             seen_ids.add(record["id"])
             records.append(record)
 
