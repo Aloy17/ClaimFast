@@ -549,7 +549,7 @@ def write_reports(report, output_dir):
         "strategy_or_run", "record_count", "record_exact_match",
         "claim_type_accuracy", "claim_type_macro_f1", "urgency_accuracy",
         "urgency_macro_f1", "extraction_micro_f1", "json_valid_rate",
-        "validation_pass_rate", "injury_recall", "high_urgency_recall",
+        "format_compliance_rate", "validation_pass_rate", "injury_recall", "high_urgency_recall",
         "mean_latency_seconds", "mean_prompt_tokens", "mean_completion_tokens",
         "total_tokens",
     ]
@@ -573,6 +573,7 @@ def write_reports(report, output_dir):
                     "urgency_macro_f1": metrics["classification"]["urgency"]["macro_f1"],
                     "extraction_micro_f1": metrics["extraction_micro"]["f1"],
                     "json_valid_rate": metrics["reliability"]["json_valid"]["rate"],
+                    "format_compliance_rate": metrics["reliability"]["format_compliance"]["rate"],
                     "validation_pass_rate": metrics["reliability"]["validation_passed"]["rate"],
                     "injury_recall": metrics["reliability"]["injury_recall"]["recall"],
                     "high_urgency_recall": metrics["reliability"]["high_urgency_recall"],
