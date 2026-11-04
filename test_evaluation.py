@@ -85,6 +85,43 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exactly"):
             load_dataset(self.dataset_path)
 
+    def test_load_dataset_rejects_invalid_gold_enum(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["claim_type"] = ["own_damage"]
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "invalid expected labels.*claim_type"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_negative_gold_amount(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["estimated_amount_inr"] = -10
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "invalid expected labels.*estimated_amount_inr"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_noncanonical_gold_date(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["incident_date"] = "2026-1-02"
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "invalid expected labels.*incident_date"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_injury_with_non_high_urgency(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["expected"]["injury_reported"] = True
+        invalid["expected"]["urgency"] = "medium"
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "injury_reported is true"):
+            load_dataset(self.dataset_path)
+
+    def test_load_dataset_rejects_unsafe_vehicle_with_non_high_urgency(self):
+        invalid = json.loads(json.dumps(self.record))
+        invalid["message"] = "My vehicle is not safe to drive after the accident."
+        invalid["expected"]["urgency"] = "medium"
+        self.dataset_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "unsafe or undrivable vehicle"):
+            load_dataset(self.dataset_path)
+
     def test_success_writes_raw_jsonl_and_csv(self):
         model = Mock(return_value=self.fake_model_result())
         result = run_evaluation(
