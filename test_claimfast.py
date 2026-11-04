@@ -54,8 +54,8 @@ class ParseTests(unittest.TestCase):
     def test_strict_format_compliance_rejects_preamble_trailing_text_and_code_fences(self):
         for response in (
             "Here is the result: " + GOOD_REPLY,
-            GOOD_REPLY + "\\nExtra text",
-            "```json\\n" + GOOD_REPLY + "\\n```",
+            GOOD_REPLY + "\nExtra text",
+            "```json\n" + GOOD_REPLY + "\n```",
         ):
             with self.subTest(response=response):
                 self.assertFalse(is_format_compliant(response, "A"))
@@ -66,7 +66,7 @@ class ParseTests(unittest.TestCase):
 
     def test_strategy_c_format_compliance_requires_exact_tagged_blocks(self):
         valid = (
-            "<reasoning>Reported collision; no injury mentioned.</reasoning>\\n"
+            "<reasoning>Reported collision; no injury mentioned.</reasoning>\n"
             "<answer>" + GOOD_REPLY + "</answer>"
         )
         self.assertTrue(is_format_compliant(valid, "C"))
@@ -119,7 +119,7 @@ class ParseTests(unittest.TestCase):
 
     def test_strategy_c_rejects_missing_answer_tags(self):
         response = (
-            "<reasoning>Reported collision.</reasoning>\\n"
+            "<reasoning>Reported collision.</reasoning>\n"
             + GOOD_REPLY
         )
 
@@ -130,7 +130,7 @@ class ParseTests(unittest.TestCase):
 
     def test_strategy_c_rejects_text_outside_tagged_blocks(self):
         response = (
-            "Here is the result.\\n"
+            "Here is the result.\n"
             "<reasoning>Reported collision.</reasoning>"
             "<answer>" + GOOD_REPLY + "</answer>"
         )
@@ -165,7 +165,7 @@ class ParseTests(unittest.TestCase):
     def test_strategy_c_rejects_preamble_inside_answer(self):
         response = (
             "<reasoning>Reported collision.</reasoning>"
-            "<answer>Here is the result:\\n" + GOOD_REPLY + "</answer>"
+            "<answer>Here is the result:\n" + GOOD_REPLY + "</answer>"
         )
 
         data, error = parse_strategy_response(response, "C")
@@ -176,7 +176,7 @@ class ParseTests(unittest.TestCase):
     def test_strategy_c_rejects_trailing_text_inside_answer(self):
         response = (
             "<reasoning>Reported collision.</reasoning>"
-            "<answer>" + GOOD_REPLY + "\\nExtra text</answer>"
+            "<answer>" + GOOD_REPLY + "\nExtra text</answer>"
         )
 
         data, error = parse_strategy_response(response, "C")
@@ -187,7 +187,7 @@ class ParseTests(unittest.TestCase):
     def test_strategy_c_rejects_multiple_json_objects(self):
         response = (
             "<reasoning>Reported collision.</reasoning>"
-            "<answer>" + GOOD_REPLY + "\\n" + GOOD_REPLY + "</answer>"
+            "<answer>" + GOOD_REPLY + "\n" + GOOD_REPLY + "</answer>"
         )
 
         data, error = parse_strategy_response(response, "C")
@@ -214,7 +214,7 @@ class ParseTests(unittest.TestCase):
 
 
     def test_strategy_a_keeps_permissive_json_extraction(self):
-        response = "Here is the result:\\n" + GOOD_REPLY + "\\nExtra text"
+        response = "Here is the result:\n" + GOOD_REPLY + "\nExtra text"
 
         data, error = parse_strategy_response(response, "A")
 
