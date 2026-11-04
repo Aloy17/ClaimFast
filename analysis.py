@@ -184,7 +184,7 @@ def _field_metrics(records, field):
         "true_positive": tp,
         "false_positive": fp,
         "false_negative": fn,
-        "unsupported_non_null_count": unsupported,
+        "gold_null_non_null_prediction_count": unsupported,
         "incorrect_non_null_count": incorrect_non_null,
     }
 
@@ -464,7 +464,7 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
             "parse_error_count": sum(bool(item.get("parse_error")) for item in group),
             "prediction_available_count": sum(isinstance(item.get("predicted"), dict) for item in group),
             "record_count": len(group),
-            "unsupported_non_null_extraction_count": unsupported,
+            "gold_null_non_null_prediction_count": unsupported,
             "predicted_non_null_extraction_count": predicted_non_null,
             "gold_null_overprediction_rate": _safe_divide(unsupported, predicted_non_null),
             "gold_null_overprediction_rate_definition": (
