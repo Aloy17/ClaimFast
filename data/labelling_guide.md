@@ -49,7 +49,7 @@ This guide defines the labelling rules for ClaimFast's motor-insurance First Not
 ## 5. Missing and ambiguous information
 
 - Use `null` when a field is not stated or cannot be determined confidently.
-- Extract explicitly stated `policy_number` and `vehicle_reg_no` even when `claim_type` is `not_a_claim`; a policy enquiry or administrative request does not make those stated values missing. Keep incident-specific fields such as `incident_date`, `location`, and `estimated_amount_inr` as `null` when no relevant incident or amount is reported.
+- Extract explicitly stated `policy_number` and `vehicle_reg_no` even when `claim_type` is `not_a_claim`; a policy enquiry or administrative request does not make those stated values missing. Keep `incident_date` and `estimated_amount_inr` as `null` when no relevant incident date or estimate is reported. For `location`, extract an explicitly stated location when it is relevant to the event described, even if no insurance claim has occurred; otherwise use `null`.
 - Do not invent policy numbers, dates, locations, registration numbers, or estimated amounts.
 - Use `true` for an explicitly reported condition.
 - Use `false` only when the message clearly denies that condition.
