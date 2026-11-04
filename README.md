@@ -31,6 +31,7 @@ Missing information must be returned as `null`. `false` means the message explic
 - `data/test.jsonl`: 60 held-out test records reserved for evaluation
 - `data/labelling_guide.md`: dataset labelling rules and ambiguous-case decisions
 - `data/independent_review_template.csv`: blinded worksheet for an independent reviewer to label 20 sampled messages
+- `scripts/compare_independent_review.py`: compares a completed independent review with the gold labels and reports agreement and disagreements
 - `docs/prompt_library.md`: documented prompt strategies and the current shared prompts
 - `docs/error_analysis_template.md`: post-benchmark failure categorisation and source-grounded review template
 - `.env.example`: template for the Groq API key
@@ -125,6 +126,24 @@ Useful pages:
 - [Model limits](https://console.groq.com/settings/limits)
 - [Usage graphs](https://console.groq.com/dashboard/usage)
 - [Groq rate limits documentation](https://console.groq.com/docs/rate-limits)
+
+## Independent label review
+
+Ask a second person to label the 20 messages in `data/independent_review_template.csv` without showing them the gold labels. They should fill all nine reviewer fields, enter the literal `null` when a value is not stated, and add confidence and notes for uncertain cases.
+
+After receiving the completed worksheet, run:
+
+```bash
+python scripts/compare_independent_review.py
+```
+
+To compare a worksheet saved elsewhere, pass its path:
+
+```bash
+python scripts/compare_independent_review.py /path/to/completed_review.csv
+```
+
+The script reports per-field agreement, exact-record agreement and each disagreement. Discuss and document disagreements with the reviewer. Do not claim an independent review or agreement rate until a real second reviewer has completed the worksheet.
 
 ## Analyse saved results
 
