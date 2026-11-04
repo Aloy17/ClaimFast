@@ -117,7 +117,7 @@ REASONING_GUIDANCE = """DECISION CHECKS:
 5. Distinguish explicitly denied information (false) from information not mentioned (null).
 6. Distinguish third-party harm from mere involvement: damage only to the insured vehicle is own_damage, even if another vehicle caused it. Reported injury to a person other than the policyholder, including an insured-vehicle passenger, or damage to another person's vehicle or property in an incident involving the insured vehicle indicates third_party_liability. Do not infer fault or harm.
 7. If the insured vehicle is destroyed or beyond repair, use total_loss as the primary claim_type even if third-party harm is also reported. Capture injuries separately and set urgency to high.
-8. Check that the selected claim type, urgency, and extracted fields are consistent.
+8. If a vehicle or part is reported missing in an insurance claim or FNOL context, classify it as suspected theft even when theft is unconfirmed. Do not apply this rule to a missing vehicle mentioned outside an insurance claim or FNOL context.\n9. Check that the selected claim type, urgency, and extracted fields are consistent.
 
 Inside the <reasoning> block, provide a concise, evidence-based decision
 summary addressing these checks. Do not invent facts or add information
