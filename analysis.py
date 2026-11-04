@@ -219,7 +219,7 @@ def _observed_rate(records, field):
     count = sum(value is True for value in values)
     return {
         "count": count,
-        "rate": _safe_divide(count, len(values)),
+        "rate": count / len(values) if values else None,
         "denominator": len(values),
         "observed_count": len(values),
         "missing_count": len(records) - len(values),
