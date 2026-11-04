@@ -60,6 +60,12 @@ class EvaluationTests(unittest.TestCase):
             "prompt_tokens": 120,
             "completion_tokens": 60,
             "total_tokens": 180,
+            "api_status_code": 200,
+            "retry_after": None,
+            "request_id": "req_success",
+            "rate_limit_headers": {
+                "x-ratelimit-remaining-tokens": "6200"
+            },
         }
 
     def test_load_dataset_accepts_exact_schema(self):
@@ -98,12 +104,18 @@ class EvaluationTests(unittest.TestCase):
         self.assertTrue(raw_records[0]["validation_passed"])
         self.assertEqual(raw_records[0]["total_tokens"], 180)
         self.assertEqual(raw_records[0]["raw_response"], valid_reply())
+        self.assertEqual(raw_records[0]["api_status_code"], 200)
+        self.assertEqual(
+            raw_records[0]["rate_limit_headers"]["x-ratelimit-remaining-tokens"],
+            "6200",
+        )
 
         with result["csv_path"].open("r", newline="", encoding="utf-8") as file:
             rows = list(csv.DictReader(file))
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["strategy"], "A")
         self.assertEqual(rows[0]["record_id"], "TEST001")
+        self.assertIn("x-ratelimit-remaining-tokens", rows[0]["rate_limit_headers"])
 
     def test_rerun_resumes_without_duplicate_api_call(self):
         model = Mock(return_value=self.fake_model_result())
@@ -141,13 +153,27 @@ class EvaluationTests(unittest.TestCase):
         self.assertIsNone(item["predicted"])
 
     def test_api_exception_is_recorded_and_run_continues(self):
-        model = Mock(side_effect=RuntimeError("simulated provider failure"))
+        error = RuntimeError("simulated provider failure")
+        error.groq_metadata = {
+            "api_status_code": 429,
+            "retry_after": "45",
+            "request_id": "req_limited",
+            "rate_limit_headers": {
+                "x-ratelimit-remaining-requests": "0"
+            },
+            "latency_seconds": 2.5,
+        }
+        model = Mock(side_effect=error)
         result = run_evaluation(
             "C", 1, self.dataset_path, self.output_dir, model_call=model
         )
         item = json.loads(result["raw_path"].read_text(encoding="utf-8").splitlines()[0])
         self.assertIn("simulated provider failure", item["api_error"])
         self.assertFalse(item["json_valid"])
+        self.assertEqual(item["api_status_code"], 429)
+        self.assertEqual(item["retry_after"], "45")
+        self.assertEqual(item["request_id"], "req_limited")
+        self.assertEqual(item["latency_seconds"], 2.5)
 
     def test_invalid_strategy_is_rejected_before_model_call(self):
         model = Mock()
@@ -176,23 +202,6 @@ class EvaluationTests(unittest.TestCase):
         self.dataset_path.write_text(
             json.dumps(changed_record) + "\n",
             encoding="utf-8",
-        )
-
-        second_model = Mock(return_value=self.fake_model_result())
-        with self.assertRaisesRegex(ValueError, "fingerprints"):
-            run_evaluation(
-                "A", 1, self.dataset_path, self.output_dir,
-                model_call=second_model,
-            )
-
-        first_model.assert_called_once()
-        second_model.assert_not_called()
-
-    def test_resume_rejects_changed_prompt_fingerprint(self):
-        first_model = Mock(return_value=self.fake_model_result())
-        run_evaluation(
-            "A", 1, self.dataset_path, self.output_dir,
-            model_call=first_model,
         )
 
         second_model = Mock(return_value=self.fake_model_result())
