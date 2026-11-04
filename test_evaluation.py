@@ -144,6 +144,7 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(len(raw_records), 1)
         self.assertEqual(raw_records[0]["record_id"], "TEST001")
         self.assertTrue(raw_records[0]["json_valid"])
+        self.assertTrue(raw_records[0]["format_compliant"])
         self.assertTrue(raw_records[0]["validation_passed"])
         self.assertEqual(raw_records[0]["total_tokens"], 180)
         self.assertEqual(raw_records[0]["raw_response"], valid_reply())
@@ -159,6 +160,17 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(rows[0]["strategy"], "A")
         self.assertEqual(rows[0]["record_id"], "TEST001")
         self.assertIn("x-ratelimit-remaining-tokens", rows[0]["rate_limit_headers"])
+
+    def test_permissive_json_parse_does_not_imply_format_compliance(self):
+        response = "Here is the result:\n" + valid_reply() + "\nExtra text"
+        model = Mock(return_value=self.fake_model_result(response))
+        result = run_evaluation(
+            "A", 1, self.dataset_path, self.output_dir, model_call=model
+        )
+        item = json.loads(result["raw_path"].read_text(encoding="utf-8").splitlines()[0])
+        self.assertTrue(item["json_valid"])
+        self.assertFalse(item["format_compliant"])
+        self.assertTrue(item["validation_passed"])
 
     def test_rerun_resumes_without_duplicate_api_call(self):
         model = Mock(return_value=self.fake_model_result())

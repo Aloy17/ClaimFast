@@ -18,7 +18,7 @@ from prompts import (
     PROMPT_STRATEGIES,
 )
 
-from validator import FIELDS, parse_response, parse_strategy_response, validate_claim
+from validator import FIELDS, is_format_compliant, parse_response, parse_strategy_response, validate_claim
 
 # Test fixture: a well formed reply, written by hand for these tests only.
 GOOD_REPLY = (
@@ -47,6 +47,38 @@ def http_error(cls, status):
 
 
 class ParseTests(unittest.TestCase):
+    def test_strict_format_compliance_accepts_bare_json_with_exact_schema(self):
+        self.assertTrue(is_format_compliant(GOOD_REPLY, "A"))
+        self.assertTrue(is_format_compliant(GOOD_REPLY, "B1"))
+
+    def test_strict_format_compliance_rejects_preamble_trailing_text_and_code_fences(self):
+        for response in (
+            "Here is the result: " + GOOD_REPLY,
+            GOOD_REPLY + "\nExtra text",
+            "```json\n" + GOOD_REPLY + "\n```",
+        ):
+            with self.subTest(response=response):
+                self.assertFalse(is_format_compliant(response, "A"))
+
+    def test_strict_format_compliance_requires_exact_schema(self):
+        incomplete = json.dumps({"claim_type": "theft"})
+        self.assertFalse(is_format_compliant(incomplete, "A"))
+
+    def test_strategy_c_format_compliance_requires_exact_tagged_blocks(self):
+        valid = (
+            "<reasoning>Reported collision; no injury mentioned.</reasoning>\n"
+            "<answer>" + GOOD_REPLY + "</answer>"
+        )
+        self.assertTrue(is_format_compliant(valid, "C"))
+        self.assertFalse(is_format_compliant(GOOD_REPLY, "C"))
+        self.assertFalse(is_format_compliant(
+            valid + "Extra text", "C"
+        ))
+
+    def test_format_compliance_rejects_nonstandard_json_constants(self):
+        invalid = GOOD_REPLY.replace('"estimated_amount_inr": 45000', '"estimated_amount_inr": NaN')
+        self.assertFalse(is_format_compliant(invalid, "A"))
+
     def test_plain_json(self):
         data, error = parse_response(GOOD_REPLY)
         self.assertIsNone(error)
@@ -87,7 +119,7 @@ class ParseTests(unittest.TestCase):
 
     def test_strategy_c_rejects_missing_answer_tags(self):
         response = (
-            "<reasoning>Reported collision.</reasoning>\\n"
+            "<reasoning>Reported collision.</reasoning>\n"
             + GOOD_REPLY
         )
 
@@ -98,7 +130,7 @@ class ParseTests(unittest.TestCase):
 
     def test_strategy_c_rejects_text_outside_tagged_blocks(self):
         response = (
-            "Here is the result.\\n"
+            "Here is the result.\n"
             "<reasoning>Reported collision.</reasoning>"
             "<answer>" + GOOD_REPLY + "</answer>"
         )
@@ -133,7 +165,7 @@ class ParseTests(unittest.TestCase):
     def test_strategy_c_rejects_preamble_inside_answer(self):
         response = (
             "<reasoning>Reported collision.</reasoning>"
-            "<answer>Here is the result:\\n" + GOOD_REPLY + "</answer>"
+            "<answer>Here is the result:\n" + GOOD_REPLY + "</answer>"
         )
 
         data, error = parse_strategy_response(response, "C")
@@ -144,7 +176,7 @@ class ParseTests(unittest.TestCase):
     def test_strategy_c_rejects_trailing_text_inside_answer(self):
         response = (
             "<reasoning>Reported collision.</reasoning>"
-            "<answer>" + GOOD_REPLY + "\\nExtra text</answer>"
+            "<answer>" + GOOD_REPLY + "\nExtra text</answer>"
         )
 
         data, error = parse_strategy_response(response, "C")
@@ -155,7 +187,7 @@ class ParseTests(unittest.TestCase):
     def test_strategy_c_rejects_multiple_json_objects(self):
         response = (
             "<reasoning>Reported collision.</reasoning>"
-            "<answer>" + GOOD_REPLY + "\\n" + GOOD_REPLY + "</answer>"
+            "<answer>" + GOOD_REPLY + "\n" + GOOD_REPLY + "</answer>"
         )
 
         data, error = parse_strategy_response(response, "C")
@@ -182,7 +214,7 @@ class ParseTests(unittest.TestCase):
 
 
     def test_strategy_a_keeps_permissive_json_extraction(self):
-        response = "Here is the result:\\n" + GOOD_REPLY + "\\nExtra text"
+        response = "Here is the result:\n" + GOOD_REPLY + "\nExtra text"
 
         data, error = parse_strategy_response(response, "A")
 
@@ -340,6 +372,12 @@ class PromptTests(unittest.TestCase):
         self.assertIn("reported missing", REASONING_GUIDANCE.lower())
         self.assertIn("suspected theft", REASONING_GUIDANCE.lower())
 
+    def test_total_loss_does_not_automatically_set_high_urgency(self):
+        from prompts import REASONING_GUIDANCE
+        self.assertIn("total_loss alone does not imply high urgency", SYSTEM_PROMPT)
+        self.assertIn("Do not set urgency to high solely because the claim is total_loss", REASONING_GUIDANCE)
+        self.assertIn("Determine urgency independently", SYSTEM_PROMPT)
+
     def test_shared_prompt_applies_total_loss_precedence(self):
         self.assertIn("total_loss is the primary claim_type", SYSTEM_PROMPT)
         self.assertIn("even if third-party harm is also reported", SYSTEM_PROMPT)
@@ -382,6 +420,18 @@ class DatasetLabellingTests(unittest.TestCase):
                 self.assertEqual(expected["claim_type"], "third_party_liability")
                 self.assertTrue(expected["injury_reported"])
                 self.assertEqual(expected["urgency"], "high")
+
+    def test_total_loss_without_injury_or_unsafe_vehicle_can_be_medium(self):
+        medium_total_loss_ids = (
+            "DEV004", "DEV010", "DEV020", "TEST004", "TEST010",
+            "TEST020", "TEST024", "TEST030", "TEST040", "TEST048", "TEST060",
+        )
+        for record_id in medium_total_loss_ids:
+            with self.subTest(record_id=record_id):
+                expected = self.records[record_id]["expected"]
+                self.assertEqual(expected["claim_type"], "total_loss")
+                self.assertEqual(expected["urgency"], "medium")
+                self.assertFalse(expected["injury_reported"])
 
     def test_total_loss_remains_primary_when_vehicle_is_beyond_repair(self):
         expected = self.records["TEST054"]["expected"]

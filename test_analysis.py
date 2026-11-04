@@ -154,6 +154,25 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(reliability["validation_passed"]["rate"], 0.0)
         self.assertEqual(reliability["record_count"], 1)
 
+    def test_format_compliance_rate_uses_only_observed_records(self):
+        compliant = make_record("T1", self.expected, self.expected, format_compliant=True)
+        noncompliant = make_record("T2", self.expected, self.expected, format_compliant=False)
+        legacy = make_record("T3", self.expected, self.expected)
+        report = analyze_records([compliant, noncompliant, legacy])
+        metric = report["per_strategy"]["A"]["reliability"]["format_compliance"]
+        self.assertEqual(metric["count"], 1)
+        self.assertEqual(metric["denominator"], 2)
+        self.assertEqual(metric["observed_count"], 2)
+        self.assertEqual(metric["missing_count"], 1)
+        self.assertEqual(metric["rate"], 0.5)
+
+    def test_format_compliance_is_none_when_no_records_have_measurement(self):
+        report = analyze_records([make_record("T1", self.expected, self.expected)])
+        metric = report["per_strategy"]["A"]["reliability"]["format_compliance"]
+        self.assertIsNone(metric["rate"])
+        self.assertEqual(metric["denominator"], 0)
+        self.assertEqual(metric["missing_count"], 1)
+
     def test_injury_recall_and_high_urgency_recall(self):
         expected = dict(self.expected, injury_reported=True, urgency="high")
         predicted = dict(expected, injury_reported=False, urgency="medium")
@@ -309,7 +328,9 @@ class AnalysisTests(unittest.TestCase):
             self.assertTrue(paths["csv_path"].exists())
             loaded = json.loads(paths["json_path"].read_text(encoding="utf-8"))
             self.assertEqual(loaded["record_count"], 1)
-            self.assertIn("strategy_or_run", paths["csv_path"].read_text(encoding="utf-8"))
+            summary_csv = paths["csv_path"].read_text(encoding="utf-8")
+            self.assertIn("strategy_or_run", summary_csv)
+            self.assertIn("format_compliance_rate", summary_csv)
 
     def test_all_extraction_fields_are_included(self):
         self.assertEqual(

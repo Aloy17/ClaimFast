@@ -14,7 +14,7 @@ from pathlib import Path
 
 from groq_client import MODEL, ask_model
 from prompts import PROMPT_STRATEGIES, build_strategy_messages
-from validator import FIELDS, parse_strategy_response, validate_claim
+from validator import FIELDS, is_format_compliant, parse_strategy_response, validate_claim
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_DATASET = ROOT / "data" / "test.jsonl"
@@ -29,7 +29,7 @@ CSV_COLUMNS = [
     "timestamp_utc", "model", "strategy", "run_number", "record_id",
     "dataset_fingerprint", "prompt_config_fingerprint",
     "temperature", "reasoning_effort", "max_completion_tokens",
-    "json_valid", "validation_passed", "parse_error", "validation_errors",
+    "json_valid", "format_compliant", "validation_passed", "parse_error", "validation_errors",
     "api_error", "api_status_code", "retry_after", "request_id",
     "rate_limit_headers", "latency_seconds", "prompt_tokens",
     "completion_tokens", "total_tokens", "expected_json", "predicted_json",
@@ -276,6 +276,9 @@ def run_evaluation(
             "predicted": parsed,
             "raw_response": raw_text,
             "json_valid": parse_error is None and api_error is None,
+            "format_compliant": (
+                is_format_compliant(raw_text, strategy) if api_error is None else None
+            ),
             "validation_passed": (
                 parse_error is None and api_error is None
                 and not validation_errors

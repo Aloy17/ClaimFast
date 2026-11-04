@@ -212,6 +212,19 @@ def _rate(records, field):
     }
 
 
+
+def _observed_rate(records, field):
+    """Rate over records with an explicit boolean measurement; leave legacy unknowns out."""
+    values = [item.get(field) for item in records if isinstance(item.get(field), bool)]
+    count = sum(value is True for value in values)
+    return {
+        "count": count,
+        "rate": count / len(values) if values else None,
+        "denominator": len(values),
+        "observed_count": len(values),
+        "missing_count": len(records) - len(values),
+    }
+
 def _positive_class_recall(records, field, positive_value=True):
     """Recall for a positive boolean label, not recall of non-null extraction."""
     true_positive = false_negative = 0
@@ -445,6 +458,7 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
         )
         reliability = {
             "json_valid": _rate(group, "json_valid"),
+            "format_compliance": _observed_rate(group, "format_compliant"),
             "validation_passed": _rate(group, "validation_passed"),
             "api_error_count": sum(bool(item.get("api_error")) for item in group),
             "parse_error_count": sum(bool(item.get("parse_error")) for item in group),
@@ -535,7 +549,7 @@ def write_reports(report, output_dir):
         "strategy_or_run", "record_count", "record_exact_match",
         "claim_type_accuracy", "claim_type_macro_f1", "urgency_accuracy",
         "urgency_macro_f1", "extraction_micro_f1", "json_valid_rate",
-        "validation_pass_rate", "injury_recall", "high_urgency_recall",
+        "format_compliance_rate", "validation_pass_rate", "injury_recall", "high_urgency_recall",
         "mean_latency_seconds", "mean_prompt_tokens", "mean_completion_tokens",
         "total_tokens",
     ]
@@ -559,6 +573,7 @@ def write_reports(report, output_dir):
                     "urgency_macro_f1": metrics["classification"]["urgency"]["macro_f1"],
                     "extraction_micro_f1": metrics["extraction_micro"]["f1"],
                     "json_valid_rate": metrics["reliability"]["json_valid"]["rate"],
+                    "format_compliance_rate": metrics["reliability"]["format_compliance"]["rate"],
                     "validation_pass_rate": metrics["reliability"]["validation_passed"]["rate"],
                     "injury_recall": metrics["reliability"]["injury_recall"]["recall"],
                     "high_urgency_recall": metrics["reliability"]["high_urgency_recall"],

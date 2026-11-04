@@ -94,6 +94,44 @@ def parse_strategy_response(text, strategy):
     return data, None
 
 
+
+def _reject_nonstandard_json_constant(value):
+    raise ValueError(f"Invalid JSON constant: {value}")
+
+
+def is_format_compliant(text, strategy):
+    """Return whether the complete response follows the strategy's output format.
+
+    Strategies A/B1/B2/B3 require one bare JSON object. Strategy C requires
+    exactly the documented reasoning and answer blocks, with one bare JSON
+    object inside the answer block. The permissive parser remains separate so
+    JSON parseability and response-format compliance can be measured distinctly.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return False
+
+    candidate = text
+    if strategy == "C":
+        pattern = (
+            r"\s*<reasoning>\s*(.*?)\s*</reasoning>"
+            r"\s*<answer>\s*(.*?)\s*</answer>\s*"
+        )
+        match = re.fullmatch(pattern, text, flags=re.DOTALL)
+        if not match:
+            return False
+        reasoning, candidate = match.groups()
+        if not reasoning.strip():
+            return False
+    elif strategy not in ("A", "B1", "B2", "B3"):
+        return False
+
+    try:
+        data = json.loads(candidate, parse_constant=_reject_nonstandard_json_constant)
+    except (json.JSONDecodeError, ValueError):
+        return False
+
+    return isinstance(data, dict) and set(data) == set(FIELDS)
+
 def validate_claim(data, claim_text=None):
     """Validate extracted fields and urgency against the original claim when supplied."""
     if not isinstance(data, dict):
