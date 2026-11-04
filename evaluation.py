@@ -210,15 +210,28 @@ def run_evaluation(
                 "Preserve the historical log and use a separate output directory."
             )
 
+    # The JSONL log is append-only. The latest attempt determines whether a
+    # logical evaluation is complete; provider/API errors remain retryable.
+    latest_attempts = {}
+    for item in experiment_records:
+        key = (item.get("strategy"), item.get("run_number"), item.get("record_id"))
+        latest_attempts[key] = item
+
     completed = {
-        (item.get("strategy"), item.get("run_number"), item.get("record_id"))
-        for item in experiment_records
+        key for key, item in latest_attempts.items()
+        if item.get("api_error") is None
     }
 
     pending = [
         record for record in records
         if (strategy, run_number, record["id"]) not in completed
     ]
+    retryable = sum(
+        latest_attempts.get((strategy, run_number, record["id"]), {}).get("api_error")
+        is not None
+        for record in pending
+    )
+    skipped = len(records) - len(pending)
 
     call_model = model_call or ask_model
     newly_processed = 0
@@ -301,14 +314,17 @@ def run_evaluation(
 
     print(
         f"\nStrategy {strategy}, run {run_number}: "
-        f"{newly_processed} newly processed, "
-        f"{len(records) - newly_processed} already present, "
+        f"{newly_processed} new attempts, "
+        f"{skipped} completed and skipped, "
+        f"{retryable} prior API errors retried, "
         f"{len(records)} total dataset records."
     )
     print(f"Raw log: {raw_path}")
     print(f"CSV results: {csv_path}")
     return {
         "processed": newly_processed,
+        "skipped": skipped,
+        "retried": retryable,
         "total": len(records),
         "raw_path": raw_path,
         "csv_path": csv_path,
