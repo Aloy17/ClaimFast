@@ -37,7 +37,12 @@ def load_gold():
 
 def parse_value(field, raw, record_id):
     value = (raw or "").strip()
-    if not value or value.lower() == "null":
+    if not value:
+        raise ValueError(
+            f"{record_id}.{field}: field is blank; enter the literal null "
+            "when the reviewer determines the value is not stated"
+        )
+    if value.lower() == "null":
         return None
     if field in BOOLEAN_FIELDS:
         if value.lower() == "true":
