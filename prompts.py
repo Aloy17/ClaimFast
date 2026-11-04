@@ -143,7 +143,7 @@ def build_reasoning_guided_messages(claim):
         + "reasoning checks.\n"
         + "</reasoning>\n"
         + "<answer>\n"
-        + "The JSON object must have exactly the nine specified keys ""and use these field names and types:\n"
+        + "The JSON object must have exactly the nine specified keys and use these field names and types:\n"
         + schema_definition
         + "\n</answer>\n\n"
         + REASONING_GUIDANCE
