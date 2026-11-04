@@ -158,7 +158,7 @@ By default, analysis reads `outputs/final_benchmark/raw_responses.jsonl` and wri
 - `analysis.json`: detailed overall, per-strategy and per-run metrics
 - `summary.csv`: a compact comparison table
 
-The report includes claim-type and urgency accuracy, macro precision/recall/F1, per-class metrics and confusion matrices; exact match for each field and for the complete nine-field record; extraction micro precision/recall/F1; JSON parseability, strict response-format compliance and validation pass rates; gold-null overprediction rate; injury recall and high-urgency recall; run-to-run agreement; token totals/averages; and mean, median and p95 latency.
+The report includes claim-type and urgency accuracy, macro precision/recall/F1, per-class metrics and confusion matrices; exact match for each field and for the complete nine-field record; extraction micro precision/recall/F1; JSON parseability, strict response-format compliance and validation pass rates; gold-null overprediction rate; injury recall and high-urgency recall; run-to-run agreement; token totals/averages; and mean, median and p95 latency. Run-level metrics are also summarized across the available runs per strategy using their mean and population standard deviation; repeated predictions are not pooled as independent samples.
 
 For a cost estimate, supply the current provider prices in USD per million tokens:
 
