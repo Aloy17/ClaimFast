@@ -212,6 +212,19 @@ def _rate(records, field):
     }
 
 
+
+def _observed_rate(records, field):
+    """Rate over records with an explicit boolean measurement; leave legacy unknowns out."""
+    values = [item.get(field) for item in records if isinstance(item.get(field), bool)]
+    count = sum(value is True for value in values)
+    return {
+        "count": count,
+        "rate": _safe_divide(count, len(values)),
+        "denominator": len(values),
+        "observed_count": len(values),
+        "missing_count": len(records) - len(values),
+    }
+
 def _positive_class_recall(records, field, positive_value=True):
     """Recall for a positive boolean label, not recall of non-null extraction."""
     true_positive = false_negative = 0
@@ -445,6 +458,7 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
         )
         reliability = {
             "json_valid": _rate(group, "json_valid"),
+            "format_compliance": _observed_rate(group, "format_compliant"),
             "validation_passed": _rate(group, "validation_passed"),
             "api_error_count": sum(bool(item.get("api_error")) for item in group),
             "parse_error_count": sum(bool(item.get("parse_error")) for item in group),
