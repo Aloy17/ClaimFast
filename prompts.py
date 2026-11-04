@@ -112,7 +112,7 @@ def build_few_shot_messages(claim, k):
 REASONING_GUIDANCE = """DECISION CHECKS:
 1. Identify the incident the customer is asking the insurer to register. For multiple incidents or forwarded messages, use only the incident relevant to the requested claim.
 2. Decide whether the message describes a new insurance claim/FNOL rather than a policy enquiry or status request.
-3. Classify the loss using the claim_type definitions. Mere involvement of another vehicle is not enough for third_party_liability. Require actual third-party property damage or injury to a person other than the policyholder, including an insured-vehicle passenger.
+3. Classify the loss using the claim_type definitions. Another vehicle's mere involvement is not enough for third_party_liability. Require actual third-party property damage or injury to a person other than the policyholder, including an insured-vehicle passenger.
 4. Apply the single-label precedence rule: if the insured vehicle is destroyed or beyond repair, use total_loss as the primary claim_type even when third-party harm is also reported. Preserve injury information in injury_reported.
 5. Determine urgency independently from claim_type. Any reported injury requires high urgency. An explicitly unsafe or undrivable vehicle also requires high urgency. Do not set urgency to high solely because the claim is total_loss. If neither high-urgency condition is reported, use medium for a genuine loss. Use low for minor glass-only matters and not_a_claim.
 6. Extract policy number, exact incident date, location, registration, and amount only when supported by the relevant incident text. Do not transfer values from an unrelated earlier incident.
