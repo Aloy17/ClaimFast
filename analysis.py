@@ -22,6 +22,10 @@ EXTRACTION_FIELDS = tuple(
 )
 INVALID_LABEL = "__invalid_prediction__"
 
+ROOT = Path(__file__).resolve().parent
+DEFAULT_INPUT = ROOT / "outputs" / "final_benchmark" / "raw_responses.jsonl"
+DEFAULT_OUTPUT_DIR = ROOT / "outputs" / "final_benchmark" / "analysis"
+
 
 def load_experiment_log(path):
     """Load an append-only log and retain the latest attempt per logical evaluation."""
@@ -572,11 +576,11 @@ def main():
         description="Analyse saved ClaimFast experiment logs without making API calls."
     )
     parser.add_argument(
-        "--input", type=Path, default=Path("outputs/raw_responses.jsonl"),
-        help="Input experiment JSONL log",
+        "--input", type=Path, default=DEFAULT_INPUT,
+        help="Input experiment JSONL log (default: outputs/final_benchmark/raw_responses.jsonl)",
     )
     parser.add_argument(
-        "--output-dir", type=Path, default=Path("outputs/analysis"),
+        "--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR,
         help="Directory for analysis.json and summary.csv",
     )
     parser.add_argument(
