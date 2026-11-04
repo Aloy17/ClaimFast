@@ -466,12 +466,13 @@ def analyze_records(records, input_rate=None, output_rate=None, projected_calls=
             "record_count": len(group),
             "unsupported_non_null_extraction_count": unsupported,
             "predicted_non_null_extraction_count": predicted_non_null,
-            "hallucination_rate": _safe_divide(unsupported, predicted_non_null),
-            "hallucination_rate_definition": (
+            "gold_null_overprediction_rate": _safe_divide(unsupported, predicted_non_null),
+            "gold_null_overprediction_rate_definition": (
                 "Predicted non-null extraction values where the gold value is null, "
-                "divided by all predicted non-null extraction values. Wrong values "
-                "where gold is non-null are reported separately as incorrect "
-                "non-null extractions."
+                "divided by all predicted non-null extraction values. This measures "
+                "overprediction against the gold labels; it is not a source-grounded "
+                "hallucination rate. Wrong values where gold is non-null are reported "
+                "separately as incorrect non-null extractions."
             ),
         }
         reliability["injury_recall"] = _positive_class_recall(
