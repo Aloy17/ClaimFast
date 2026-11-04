@@ -32,6 +32,7 @@ Missing information must be returned as `null`. `false` means the message explic
 - `data/labelling_guide.md`: dataset labelling rules and ambiguous-case decisions
 - `data/independent_review_template.csv`: blinded worksheet for an independent reviewer to label 20 sampled messages
 - `scripts/compare_independent_review.py`: compares a completed independent review with the gold labels and reports agreement and disagreements
+- `scripts/preflight_benchmark.py`: checks dataset IDs/counts, model settings, prompt fingerprints and the planned evaluation count without making API calls
 - `docs/prompt_library.md`: documented prompt strategies and the current shared prompts
 - `docs/error_analysis_template.md`: post-benchmark failure categorisation and source-grounded review template
 - `.env.example`: template for the Groq API key
@@ -100,6 +101,16 @@ python -m unittest -v
 ```
 
 The automated test suite uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota. Run the command above to see the current test count and results.
+
+## Offline benchmark preflight
+
+Before requesting approval to start the formal benchmark, run the offline integrity check:
+
+```bash
+python scripts/preflight_benchmark.py
+```
+
+It validates the 20 development and 60 held-out records, confirms the five strategy names, prints the dataset and per-strategy prompt fingerprints, and confirms the planned count of 900 logical evaluations (5 strategies × 3 runs × 60 test records). It also reports whether formal output files already exist. It does not call Groq, check account quota, or start an evaluation.
 
 ## Run an evaluation
 
