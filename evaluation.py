@@ -18,7 +18,8 @@ from validator import FIELDS, parse_strategy_response, validate_claim
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_DATASET = ROOT / "data" / "test.jsonl"
-DEFAULT_OUTPUT_DIR = ROOT / "outputs"
+# Keep new formal runs separate from historical/legacy experiment logs.
+DEFAULT_OUTPUT_DIR = ROOT / "outputs" / "final_benchmark"
 STRATEGIES = tuple(PROMPT_STRATEGIES)
 TEMPERATURE = 0
 REASONING_EFFORT = "low"
