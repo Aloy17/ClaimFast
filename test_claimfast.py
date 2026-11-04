@@ -305,7 +305,7 @@ class PromptTests(unittest.TestCase):
         self.assertIn("suspected theft", SYSTEM_PROMPT)
         self.assertIn("insurance claim or FNOL context", SYSTEM_PROMPT)
         from prompts import REASONING_GUIDANCE
-        self.assertIn("missing vehicle", REASONING_GUIDANCE.lower())
+        self.assertIn("reported missing", REASONING_GUIDANCE.lower())
         self.assertIn("suspected theft", REASONING_GUIDANCE.lower())
 
     def test_shared_prompt_applies_total_loss_precedence(self):
