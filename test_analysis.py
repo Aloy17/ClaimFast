@@ -247,15 +247,31 @@ class AnalysisTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Invalid JSON"):
                 load_experiment_log(path)
 
-    def test_loader_rejects_duplicate_run_record(self):
+    def test_loader_uses_latest_attempt_for_duplicate_run_record(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "duplicate.jsonl"
-            item = make_record("T1", self.expected, self.expected)
+            path = Path(directory) / "retry.jsonl"
+            failed = make_record("T1", self.expected, None, api_error="429")
+            succeeded = make_record("T1", self.expected, self.expected, api_error=None)
             path.write_text(
-                json.dumps(item) + "\n" + json.dumps(item) + "\n",
+                json.dumps(failed) + "\n" + json.dumps(succeeded) + "\n",
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "Duplicate"):
+            records = load_experiment_log(path)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["predicted"], self.expected)
+            self.assertIsNone(records[0]["api_error"])
+
+    def test_loader_rejects_conflicting_expected_labels_across_attempts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "conflicting.jsonl"
+            first = make_record("T1", self.expected, self.expected)
+            changed = dict(self.expected, location="Bandra")
+            second = make_record("T1", changed, changed)
+            path.write_text(
+                json.dumps(first) + "\n" + json.dumps(second) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "Conflicting expected labels"):
                 load_experiment_log(path)
 
     def test_loader_rejects_incomplete_expected_schema(self):
