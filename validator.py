@@ -113,8 +113,8 @@ def is_format_compliant(text, strategy):
     candidate = text
     if strategy == "C":
         pattern = (
-            r"\\s*<reasoning>\\s*(.*?)\\s*</reasoning>"
-            r"\\s*<answer>\\s*(.*?)\\s*</answer>\\s*"
+            r"\s*<reasoning>\s*(.*?)\s*</reasoning>"
+            r"\s*<answer>\s*(.*?)\s*</answer>\s*"
         )
         match = re.fullmatch(pattern, text, flags=re.DOTALL)
         if not match:
