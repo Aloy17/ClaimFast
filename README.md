@@ -95,7 +95,7 @@ Run the automated test suite:
 python -m unittest -v
 ```
 
-The test suite currently contains **93 automated tests**. It uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota.
+The test suite currently contains **92 automated tests**. It uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota.
 
 ## Run an evaluation
 
