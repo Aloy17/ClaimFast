@@ -136,14 +136,14 @@ class AnalysisTests(unittest.TestCase):
         report = analyze_records([make_record("T1", expected, predicted)])
         reliability = report["per_strategy"]["A"]["reliability"]
         self.assertEqual(reliability["unsupported_non_null_extraction_count"], 1)
-        self.assertAlmostEqual(reliability["hallucination_rate"], 1 / 6)
+        self.assertAlmostEqual(reliability["gold_null_overprediction_rate"], 1 / 6)
 
     def test_wrong_non_null_value_is_incorrect_but_not_null_to_value_hallucination(self):
         predicted = dict(self.expected, location="Bandra")
         report = analyze_records([make_record("T1", self.expected, predicted)])
         reliability = report["per_strategy"]["A"]["reliability"]
         self.assertEqual(reliability["unsupported_non_null_extraction_count"], 0)
-        self.assertEqual(reliability["hallucination_rate"], 0.0)
+        self.assertEqual(reliability["gold_null_overprediction_rate"], 0.0)
         location = report["per_strategy"]["A"]["field_metrics"]["location"]
         self.assertEqual(location["incorrect_non_null_count"], 1)
 
