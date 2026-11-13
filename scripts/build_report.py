@@ -22,6 +22,7 @@ from reportlab.platypus import (Image, PageBreak, Paragraph, SimpleDocTemplate,
 ROOT = Path(__file__).resolve().parent.parent
 ANALYSIS = ROOT / "outputs" / "final_benchmark" / "analysis" / "analysis.json"
 LOG = ROOT / "outputs" / "final_benchmark" / "raw_responses.jsonl"
+SUBGROUP_ANALYSIS = ROOT / "outputs" / "final_benchmark" / "analysis" / "subgroup_analysis.json"
 OUT_DIR = ROOT / "submission"
 FIG_DIR = ROOT / "outputs" / "final_benchmark" / "analysis" / "figures"
 PDF = OUT_DIR / "ClaimFast_Evaluation_Report.pdf"
@@ -37,34 +38,11 @@ def pct(x, d=1):
     return f"{x * 100:.{d}f}%"
 
 
-def location_equivalent(gold, pred):
-    if gold == pred:
-        return True
-    return bool(gold and pred and pred.lower().strip() in gold.lower())
-
-
 def load():
     report = json.loads(ANALYSIS.read_text(encoding="utf-8"))
     records = [json.loads(line) for line in LOG.open(encoding="utf-8") if line.strip()]
-    return report, records
-
-
-def normalised_exact(records):
-    """Record exact match when location is compared leniently (label convention)."""
-    out = {}
-    for s in STRATS:
-        rs = [r for r in records if r["strategy"] == s]
-        ok = 0
-        for r in rs:
-            p = r.get("predicted") or {}
-            good = all(
-                (location_equivalent(r["expected"][f], p.get(f)) if f == "location"
-                 else p.get(f) == r["expected"][f])
-                for f in FIELDS
-            )
-            ok += good
-        out[s] = ok / len(rs)
-    return out
+    subgroup_report = json.loads(SUBGROUP_ANALYSIS.read_text(encoding="utf-8"))
+    return report, records, subgroup_report
 
 
 def heatmap(matrix, labels, title, path):
@@ -94,10 +72,9 @@ def heatmap(matrix, labels, title, path):
 
 
 def main():
-    report, records = load()
+    report, records, subgroup_report = load()
     ps = report["per_strategy"]
     rs = report["run_statistics"]
-    norm = normalised_exact(records)
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -186,17 +163,17 @@ def main():
 
     # ---------------- Page 2: results ----------------
     story += [PageBreak(), P("3. Results", h2)]
-    hdr = ["Strategy", "claim_type acc", "claim_type macro F1", "urgency acc", "urgency macro F1", "Extraction micro F1", "Record exact (strict)", "Record exact (location normalised)"]
+    hdr = ["Strategy", "claim_type acc", "claim_type macro F1", "urgency acc", "urgency macro F1", "Extraction micro F1", "Record exact (strict)"]
     rows = [hdr]
     for s in STRATS:
         m = ps[s]
         rows.append([NAMES[s], pct(m["classification"]["claim_type"]["accuracy"]), f"{m['classification']['claim_type']['macro_f1']:.3f}",
                      pct(m["classification"]["urgency"]["accuracy"]), f"{m['classification']['urgency']['macro_f1']:.3f}",
-                     f"{m['extraction_micro']['f1']:.3f}", pct(m["record_exact_match"]["accuracy"]), pct(norm[s])])
-    story += [table(rows, [2.7 * cm, 1.9 * cm, 2.0 * cm, 1.8 * cm, 2.0 * cm, 2.2 * cm, 1.9 * cm, 2.4 * cm], fs=7),
-              P("Each figure pools the three runs (180 predictions per strategy). Strict record exact match is low for every strategy because the gold <i>location</i> label "
-                "often keeps words such as 'near' or 'outside the gym in' while the model returns the place name (30 of 60 test records). "
-                "The normalised column treats those as equal; it changes no other field.", small)]
+                     f"{m['extraction_micro']['f1']:.3f}", pct(m["record_exact_match"]["accuracy"])])
+    story += [table(rows, [2.9 * cm, 2.0 * cm, 2.0 * cm, 1.9 * cm, 2.0 * cm, 2.1 * cm, 4.0 * cm], fs=7),
+              P("Each figure pools the three runs (180 predictions per strategy). Strict record exact match requires equality across all nine fields. "
+                "Some gold location labels retain contextual wording such as 'near' or 'outside the gym in', while a prediction may return only the place name. "
+                "We do not report a location-normalised exact-match score: substring matching can credit incomplete or overly broad predictions, and semantic equivalence requires adjudication.", small)]
 
     story += [P("Per-field exact match", h2)]
     short = ["claim_type", "urgency", "policy", "date", "location", "reg no", "amount", "injury", "police"]
@@ -204,7 +181,8 @@ def main():
     for s in STRATS:
         frows.append([NAMES[s]] + [pct(ps[s]["field_metrics"][f]["exact_match"], 0) for f in FIELDS])
     story += [table(frows, [2.7 * cm] + [1.65 * cm] * 9, fs=7),
-              P("Location exact match (50 to 60%) is depressed by the label-format issue above. Policy number is lowest for B1 and B2 (85 to 87%) because the models return null on "
+              P("Location exact match is sensitive to label granularity: some gold labels retain contextual phrases while predictions may return only the place name. "
+                "These remain mismatches under strict equality; no automatic semantic credit is applied. Policy number is lowest for B1 and B2 (85 to 87%) because the models return null on "
                 "not_a_claim messages that do state a policy number; B3 recovers it (98%). Incident date is 100% for every strategy.", small)]
 
     story += [P("Reliability, speed and cost", h2)]
@@ -269,35 +247,35 @@ def main():
         P("These slices examine three specific edge-case groups. Counts below pool three runs; predictions are repeated evaluations of the same messages, not additional independent test messages.", small),
     ]
 
-    subgroup_data = [
-        ("Ambiguous theft", "3 messages; 9 predictions per strategy",
-         [
-             ["Strategy", "Claim acc.", "Urgency acc.", "Extract. F1", "Exact records"],
-             ["A", "100.0%", "100.0%", "0.800", "3/9"],
-             ["B1", "66.7%", "66.7%", "0.556", "0/9"],
-             ["B2", "66.7%", "66.7%", "0.588", "0/9"],
-             ["B3", "77.8%", "77.8%", "0.759", "1/9"],
-             ["C", "100.0%", "100.0%", "0.800", "3/9"],
-         ]),
-        ("Glass-only", "9 messages; 27 predictions per strategy",
-         [
-             ["Strategy", "Claim acc.", "Urgency acc.", "Extract. F1", "Exact records"],
-             ["A", "100.0%", "100.0%", "0.882", "9/27"],
-             ["B1", "100.0%", "100.0%", "0.902", "12/27"],
-             ["B2", "100.0%", "100.0%", "0.889", "8/27"],
-             ["B3", "100.0%", "100.0%", "0.914", "12/27"],
-             ["C", "100.0%", "100.0%", "0.875", "9/27"],
-         ]),
-        ("Multi-incident", "1 message; 3 predictions per strategy",
-         [
-             ["Strategy", "Claim acc.", "Urgency acc.", "Extract. F1", "Exact records"],
-             ["A", "100.0%", "100.0%", "0.821", "0/3"],
-             ["B1", "100.0%", "100.0%", "0.833", "0/3"],
-             ["B2", "100.0%", "100.0%", "0.769", "0/3"],
-             ["B3", "100.0%", "100.0%", "0.923", "0/3"],
-             ["C", "100.0%", "100.0%", "0.769", "0/3"],
-         ]),
+    subgroup_data = []
+    subgroup_labels = [
+        ("ambiguous_theft", "Ambiguous theft"),
+        ("glass_only", "Glass-only"),
+        ("multi_incident", "Multi-incident"),
     ]
+
+    for subgroup_key, title in subgroup_labels:
+        details = subgroup_report["subgroups"][subgroup_key]
+        rows = [["Strategy", "Claim acc.", "Urgency acc.", "Extract. F1", "Exact records"]]
+
+        for strategy in STRATS:
+            metrics = details["per_strategy"][strategy]
+            exact = metrics["record_exact_match"]
+            rows.append([
+                strategy,
+                pct(metrics["classification"]["claim_type"]["accuracy"]),
+                pct(metrics["classification"]["urgency"]["accuracy"]),
+                f"{metrics['extraction_micro']['f1']:.3f}",
+                f"{exact['exact_records']}/{exact['count']}",
+            ])
+
+        count = details["unique_record_count"]
+        message_label = "message" if count == 1 else "messages"
+        subgroup_data.append((
+            title,
+            f"{count} unique {message_label}; {count * 3} predictions per strategy",
+            rows,
+        ))
 
     for title, sample, data in subgroup_data:
         story += [
@@ -338,14 +316,14 @@ def main():
 
     # ---------------- Page 6: recommendation ----------------
     story += [PageBreak(), P("8. Recommendation", h2),
-              P("<b>Use B3 (few-shot, k=8).</b> It has the highest claim_type accuracy (98.9%), the best strategy-level record exact match (44.4% strict, 81.7% location normalised), the best extraction F1 (0.914) "
+              P("<b>Use B3 (few-shot, k=8).</b> It has the highest claim_type accuracy (98.9%), the best strategy-level strict record exact match (44.4%), the best extraction F1 (0.914) "
                 "and the fewest failures (14 rows, 13 distinct records). Injury and high-urgency recall are 100%. It costs about $0.19 per 1,000 claims, 1.8 times zero-shot, and uses about 2,057 prompt tokens per call. "
                 "At that price the extra accuracy is worth paying for in a triage setting."),
               P("<b>When to choose otherwise.</b> B2 (k=5) has the best urgency accuracy (98.3%) at $0.157 per 1,000 claims, but loses policy-number recall on not_a_claim messages. "
                 "A is the cheapest ($0.104) and still never misses an injury, but over-escalates urgency and misses third-party liability, so it needs human review of every high-urgency item. "
                 "C is not recommended: it costs about as much as B3, is slowest, and is less accurate."),
               P("<b>Before deployment.</b> (1) Reword the not_a_claim instruction and rerun B3 on the 60 test records. (2) Add examples for passenger injury, missing vehicles and multi-incident messages. "
-                "(3) Route messages the model labels theft or not_a_claim with a missing vehicle to a person. (4) Normalise the gold location convention before comparing location scores."),
+                "(3) Route messages the model labels theft or not_a_claim with a missing vehicle to a person. (4) Adjudicate location-label granularity before defining any semantic matching policy."),
               P("9. Limitations", h2),
               P("1. 60 test records is small; one record moves a score by 1.7 points per run, so close results are not conclusive. "
                 "2. The messages are synthetic and short. Real claims are longer, noisier and include attachments. "
@@ -354,7 +332,7 @@ def main():
                 "5. Latency was measured on a shared endpoint and is noisy. Cost is projected from list prices on 2026-11-13 and may change. "
                 "6. Few-shot examples were added in a fixed order, so the effect of each example cannot be separated from the effect of count. "
                 "7. Prompt D (optional) was not implemented. "
-                "8. Several gold labels (TEST029, TEST047, TEST051, urgency for destroyed vehicles) are judgement calls under the guide; different rules would shift the scores."),
+                "8. Several gold labels (TEST029, TEST047, TEST051, urgency for destroyed vehicles) are judgement calls under the guide; different rules would shift the scores. Strict location exact match may penalise semantically equivalent place names when contextual wording is omitted; no automatic normalised score is claimed."),
               P("Reproduce: <i>python analysis.py --input-cost-per-million 0.075 --output-cost-per-million 0.30</i>, then <i>python scripts/build_error_analysis.py</i> and <i>python scripts/build_report.py</i>. No step calls the API.", small)]
 
     doc = SimpleDocTemplate(str(PDF), pagesize=A4, leftMargin=1.7 * cm, rightMargin=1.7 * cm, topMargin=1.5 * cm, bottomMargin=1.5 * cm,

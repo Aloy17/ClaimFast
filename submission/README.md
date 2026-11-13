@@ -7,7 +7,7 @@
 | One-page labelling guide | `Labelling_Guide_OnePage.pdf` |
 | Prompt library (A, B1, B2, B3, C) | `prompts/` |
 | Datasets (20 dev, 60 test), full labelling guide, independent-review worksheet | `data/` |
-| Benchmark outputs (900 runs) and metrics | `outputs/` |
+| Benchmark outputs (900 runs), metrics and subgroup analysis | `outputs/` |
 | Code, tests, requirements, README | `code/` |
 | Demo script (recording still to add) | `demo/` |
 

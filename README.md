@@ -219,18 +219,19 @@ For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.0
 
 ### Completed
 
-- Zero-shot, few-shot (k=3, 5, 8) and reasoning-guided prompt strategies (Prompt D, optional, not implemented)
+- Zero-shot (A), few-shot (B1/B2/B3; k=3/5/8), and reasoning-guided (C) prompt strategies; optional Prompt D not implemented
 - 80 synthetic labelled messages (20 development, 60 test) and a labelling guide
-- JSON parsing and output validation; 131 automated tests
+- JSON parsing and output validation; automated unit-test suite
 - Full benchmark: 5 strategies x 3 runs x 60 test records = 900 evaluations, committed in `outputs/final_benchmark/`
 - Offline analysis of all required metrics (`outputs/final_benchmark/analysis/`)
+- Diagnostic subgroup analysis for ambiguous theft, glass-only and multi-incident messages
 - Failure analysis workbook (`outputs/final_benchmark/analysis/error_analysis.xlsx`)
 - Final evaluation report (`submission/ClaimFast_Evaluation_Report.pdf`, 7 pages)
 - Prompt library (`docs/prompt_library.md`, `submission/prompts/`) and one-page labelling guide
 
 ### Headline result
 
-Strategy B3 (few-shot, k=8) is recommended: 98.9% claim_type accuracy, 96.7% urgency accuracy, 100% injury and high-urgency recall, about $0.19 per 1,000 claims. Strict record exact match is 44.4%; it is 81.7% when the gold location convention ('near ...') is normalised. See the report for details and limitations.
+Strategy B3 (few-shot, k=8) is recommended: 98.9% claim_type accuracy, 96.7% urgency accuracy, 100% injury and high-urgency recall, about $0.19 per 1,000 claims. Strict record exact match is 44.4%. Location-level exact match is sensitive to contextual wording in the gold labels; no location-normalised score is claimed without manual adjudication. See the report for details and limitations.
 
 ### Still open
 
