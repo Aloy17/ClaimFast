@@ -119,15 +119,9 @@ python scripts/demo_strategies.py --strategies A B1 B2 B3 C --message "Your clai
 
 A suggested three-minute demo script is in `docs/demo_script.md`.
 
-## Run the tests
+## Tests
 
-Run the automated test suite:
-
-```bash
-python -m unittest -v
-```
-
-The automated test suite uses stand-ins for the model and HTTP responses, so it does not require your API key or consume your Groq API quota. Run the command above to see the current test count and results.
+The test files are included in this directory for code review. This is a read-only snapshot, not a standalone runnable project: its tests depend on the original repository layout and data paths. Run the automated test suite from the repository root, not from this snapshot. The root-level suite uses stand-ins for model and HTTP responses and does not require an API key or consume API quota.
 
 ## Offline benchmark preflight
 

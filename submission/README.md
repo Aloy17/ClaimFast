@@ -2,7 +2,7 @@
 
 | Item | Location |
 |---|---|
-| Final evaluation report (5 pages) | `ClaimFast_Evaluation_Report.pdf` |
+| Final evaluation report (7 pages) | `ClaimFast_Evaluation_Report.pdf` |
 | Error-analysis sheet | `Error_Analysis.xlsx` |
 | One-page labelling guide | `Labelling_Guide_OnePage.pdf` |
 | Prompt library (A, B1, B2, B3, C) | `prompts/` |

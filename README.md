@@ -225,7 +225,7 @@ For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.0
 - Full benchmark: 5 strategies x 3 runs x 60 test records = 900 evaluations, committed in `outputs/final_benchmark/`
 - Offline analysis of all required metrics (`outputs/final_benchmark/analysis/`)
 - Failure analysis workbook (`outputs/final_benchmark/analysis/error_analysis.xlsx`)
-- Final evaluation report (`submission/ClaimFast_Evaluation_Report.pdf`, 5 pages)
+- Final evaluation report (`submission/ClaimFast_Evaluation_Report.pdf`, 7 pages)
 - Prompt library (`docs/prompt_library.md`, `submission/prompts/`) and one-page labelling guide
 
 ### Headline result

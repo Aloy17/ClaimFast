@@ -101,7 +101,7 @@ def main():
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for s in ("A", "B3"):
+    for s in ("A", "B3", "C"):
         c = ps[s]["classification"]
         heatmap(c["claim_type"]["confusion_matrix"], c["claim_type"]["labels"],
                 f"claim_type, {NAMES[s]} (3 runs pooled)", FIG_DIR / f"cm_claim_{s}.png")
@@ -248,18 +248,74 @@ def main():
 
     # ---------------- Page 4: confusion matrices ----------------
     story += [PageBreak(), P("5. Confusion matrices", h2),
-              P("Counts pool the three runs. Zero-shot (A) and the best strategy (B3) are shown; matrices for every strategy are in <i>outputs/final_benchmark/analysis/analysis.json</i>.")]
-    imgs = [[Image(str(FIG_DIR / "cm_claim_A.png"), width=8.2 * cm, height=7.05 * cm), Image(str(FIG_DIR / "cm_claim_B3.png"), width=8.2 * cm, height=7.05 * cm)],
-            [Image(str(FIG_DIR / "cm_urgency_A.png"), width=8.2 * cm, height=7.05 * cm), Image(str(FIG_DIR / "cm_urgency_B3.png"), width=8.2 * cm, height=7.05 * cm)]]
-    story += [Table(imgs, colWidths=[8.6 * cm, 8.6 * cm]), Spacer(1, 4)]
+              P("Counts pool the three runs. Zero-shot (A), the best strategy (B3), and reasoning-guided (C) are shown; matrices for every strategy are in <i>outputs/final_benchmark/analysis/analysis.json</i>.")]
+    imgs = [
+        [Image(str(FIG_DIR / f"cm_claim_{s}.png"), width=5.45 * cm, height=4.7 * cm)
+         for s in ("A", "B3", "C")],
+        [Image(str(FIG_DIR / f"cm_urgency_{s}.png"), width=5.45 * cm, height=4.7 * cm)
+         for s in ("A", "B3", "C")],
+    ]
+    story += [Table(imgs, colWidths=[5.7 * cm] * 3), Spacer(1, 4)]
     ca = ps["A"]["classification"]["claim_type"]["per_class"]
     story += [P(f"<b>Reading the matrices.</b> Under A, 14 of 39 third_party_liability predictions and 3 of 30 total_loss predictions become own_damage, so own_damage precision is "
                 f"{pct(ca['own_damage']['precision'], 0)} and third_party_liability recall is {pct(ca['third_party_liability']['recall'], 0)}. B3 removes all of those. "
                 "The only claim_type errors left in B3 are two predictions of TEST029 (a missing vehicle) as not_a_claim, a case the labelling guide itself flags as ambiguous. "
                 "On urgency, A puts 41 medium cases into high, while B3 leaves 4 medium as high and 2 as low. No high case was missed in either strategy.")]
 
-    # ---------------- Page 5: error analysis ----------------
-    story += [P("6. Error analysis", h2),
+    # ---------------- Page 5: subgroup analysis ----------------
+    story += [
+        PageBreak(),
+        P("6. Subgroup analysis", h2),
+        P("These slices examine three specific edge-case groups. Counts below pool three runs; predictions are repeated evaluations of the same messages, not additional independent test messages.", small),
+    ]
+
+    subgroup_data = [
+        ("Ambiguous theft", "3 messages; 9 predictions per strategy",
+         [
+             ["Strategy", "Claim acc.", "Urgency acc.", "Extract. F1", "Exact records"],
+             ["A", "100.0%", "100.0%", "0.800", "3/9"],
+             ["B1", "66.7%", "66.7%", "0.556", "0/9"],
+             ["B2", "66.7%", "66.7%", "0.588", "0/9"],
+             ["B3", "77.8%", "77.8%", "0.759", "1/9"],
+             ["C", "100.0%", "100.0%", "0.800", "3/9"],
+         ]),
+        ("Glass-only", "9 messages; 27 predictions per strategy",
+         [
+             ["Strategy", "Claim acc.", "Urgency acc.", "Extract. F1", "Exact records"],
+             ["A", "100.0%", "100.0%", "0.882", "9/27"],
+             ["B1", "100.0%", "100.0%", "0.902", "12/27"],
+             ["B2", "100.0%", "100.0%", "0.889", "8/27"],
+             ["B3", "100.0%", "100.0%", "0.914", "12/27"],
+             ["C", "100.0%", "100.0%", "0.875", "9/27"],
+         ]),
+        ("Multi-incident", "1 message; 3 predictions per strategy",
+         [
+             ["Strategy", "Claim acc.", "Urgency acc.", "Extract. F1", "Exact records"],
+             ["A", "100.0%", "100.0%", "0.821", "0/3"],
+             ["B1", "100.0%", "100.0%", "0.833", "0/3"],
+             ["B2", "100.0%", "100.0%", "0.769", "0/3"],
+             ["B3", "100.0%", "100.0%", "0.923", "0/3"],
+             ["C", "100.0%", "100.0%", "0.769", "0/3"],
+         ]),
+    ]
+
+    for title, sample, data in subgroup_data:
+        story += [
+            P(title, h2),
+            P(sample, small),
+            table(data, [3.0 * cm, 2.4 * cm, 2.4 * cm, 2.5 * cm, 2.5 * cm], fs=7),
+            Spacer(1, 4),
+        ]
+
+    story += [
+        P("<b>Ambiguous theft.</b> A and C classify all three messages correctly. B1 and B2 repeatedly classify TEST029 as not_a_claim and assign low rather than medium urgency. B3 improves on B1/B2 but still makes errors. A and C tie on extraction F1 and exact records; C is slower on average.", body),
+        P("<b>Glass-only.</b> All strategies classify claim type and urgency correctly. B3 has the highest extraction micro F1 (0.914), narrowly ahead of B1 (0.902). Increasing the number of examples does not produce a monotonic improvement: B2 is below B1 on extraction F1 and exact records.", body),
+        P("<b>Multi-incident.</b> All strategies classify the single message correctly, but none achieves a fully exact record. B3 has the highest extraction F1 (0.923) in this slice. For TEST058, several strategies carry the first incident's Rs 12,000 windshield estimate into the second incident, while B1 correctly returns null for that amount. This is one illustrative case, not evidence of general strategy superiority.", body),
+        P("<b>Interpretation limits.</b> The multi-incident subgroup contains only one unique message, so its results are descriptive only. The other subgroups are also small. Classification macro precision, recall and F1 calculated over the full global class list are not useful for these slices because many classes are absent; subgroup claim-type and urgency accuracy are reported instead. Extraction micro F1 aggregates the extraction fields and should be read alongside exact-record counts.", small),
+    ]
+
+    # ---------------- Page 6: error analysis ----------------
+    story += [PageBreak(), P("7. Error analysis", h2),
               P("The full sheet is <i>outputs/final_benchmark/analysis/error_analysis.xlsx</i>. It lists every distinct field failure per strategy with its cause, severity, "
                 "mitigation, a check of the extracted value against the source message, and whether the gold label is flagged. A: 31 rows, B1: 24, B2: 24, B3: 14 (all that exist), C: 21. "
                 "No API or format failure occurred, and every extracted policy number, registration, date and amount appears in its source message, so there are no invented values.")]
@@ -281,7 +337,7 @@ def main():
                 "The most consequential real defect is the not_a_claim extraction rule, which comes from the prompt wording and is cheap to fix.")]
 
     # ---------------- Page 6: recommendation ----------------
-    story += [P("7. Recommendation", h2),
+    story += [PageBreak(), P("8. Recommendation", h2),
               P("<b>Use B3 (few-shot, k=8).</b> It has the highest claim_type accuracy (98.9%), the best strategy-level record exact match (44.4% strict, 81.7% location normalised), the best extraction F1 (0.914) "
                 "and the fewest failures (14 rows, 13 distinct records). Injury and high-urgency recall are 100%. It costs about $0.19 per 1,000 claims, 1.8 times zero-shot, and uses about 2,057 prompt tokens per call. "
                 "At that price the extra accuracy is worth paying for in a triage setting."),
@@ -290,7 +346,7 @@ def main():
                 "C is not recommended: it costs about as much as B3, is slowest, and is less accurate."),
               P("<b>Before deployment.</b> (1) Reword the not_a_claim instruction and rerun B3 on the 60 test records. (2) Add examples for passenger injury, missing vehicles and multi-incident messages. "
                 "(3) Route messages the model labels theft or not_a_claim with a missing vehicle to a person. (4) Normalise the gold location convention before comparing location scores."),
-              P("8. Limitations", h2),
+              P("9. Limitations", h2),
               P("1. 60 test records is small; one record moves a score by 1.7 points per run, so close results are not conclusive. "
                 "2. The messages are synthetic and short. Real claims are longer, noisier and include attachments. "
                 "3. One annotator wrote the gold labels. The independent review of 20 labels is prepared (worksheet and comparison script in the repository) but has not been completed, so inter-annotator agreement is not reported. "
