@@ -2,7 +2,12 @@
 
 A command-line prototype that reads a motor insurance claim message, sends it to a hosted LLM through Groq, and displays the extracted claim information as validated JSON.
 
-The command-line application currently uses **zero-shot prompting**: instructions and definitions without examples. The project also includes few-shot prompt builders with k=3, 5 and 8 for experimentation. It uses the `openai/gpt-oss-20b` model through Groq's API. No model is downloaded to your computer.
+Two entry points use the same prompts and validator:
+
+- **`main.py` (demo application)** runs one message through the zero-shot prompt (strategy A) only.
+- **`scripts/demo_strategies.py` and `evaluation.py` (strategy runners)** run strategies A, B1 (k=3), B2 (k=5), B3 (k=8) and C (reasoning-guided). `evaluation.py` is the five-strategy benchmark runner; the demo script shows one message across selected strategies.
+
+Prompt D (the optional strategy in the assignment) is not implemented. The project uses the `openai/gpt-oss-20b` model through Groq's API. No model is downloaded to your computer.
 
 ## What it extracts
 
@@ -35,6 +40,12 @@ Missing information must be returned as `null`. `false` means the message explic
 - `scripts/preflight_benchmark.py`: checks dataset IDs/counts, model settings, prompt fingerprints and the planned evaluation count without making API calls
 - `docs/prompt_library.md`: documented prompt strategies and the current shared prompts
 - `docs/error_analysis_template.md`: post-benchmark failure categorisation and source-grounded review template
+- `scripts/demo_strategies.py`: runs one message through strategies A, B3 and C (or any chosen strategies) and prints the extracted fields, latency and tokens
+- `scripts/build_error_analysis.py`: builds `outputs/final_benchmark/analysis/error_analysis.xlsx` from the saved log (no API calls)
+- `scripts/build_report.py`: builds `submission/ClaimFast_Evaluation_Report.pdf` from the saved analysis (no API calls)
+- `scripts/build_labelling_onepager.py`: builds the one-page labelling guide PDF
+- `scripts/export_prompt_library.py`: writes the exact messages for A, B1, B2, B3 and C to `submission/prompts/`
+- `outputs/final_benchmark/`: raw responses and results for the 900-request benchmark, plus `analysis/` (metrics, error analysis workbook)
 - `.env.example`: template for the Groq API key
 - `requirements.txt`: Python dependencies
 
@@ -91,6 +102,22 @@ The program displays the raw model response, whether validation passed, the extr
 5. `main.py` displays the result. API errors, empty responses, malformed JSON and missing fields produce readable messages instead of crashing the application.
 
 Strict constrained JSON output is deliberately not used in this version. The goal is to evaluate whether the model follows the JSON instructions independently and whether the parser and validator detect cases where it does not.
+
+## Demonstrate the strategies
+
+Run one message through strategies A, B3 and C (needs your Groq key in `.env`):
+
+```bash
+python scripts/demo_strategies.py
+```
+
+Use your own message or other strategies:
+
+```bash
+python scripts/demo_strategies.py --strategies A B1 B2 B3 C --message "Your claim text here"
+```
+
+A suggested three-minute demo script is in `docs/demo_script.md`.
 
 ## Run the tests
 
@@ -190,22 +217,22 @@ For `openai/gpt-oss-20b`, Groq's published price checked on 2026-11-03 is **$0.0
 
 ## Project status
 
-### Implemented
+### Completed
 
-- Zero-shot claim extraction
-- Few-shot prompt construction with k=3, 5 and 8
-- Reasoning-guided prompt strategy
-- Synthetic development and held-out test datasets
-- Dataset labelling guide
-- JSON parsing and output validation
-- Automated unit tests
-- Single-strategy evaluation runner with fingerprint-protected experiment logging and rate-limit metadata
-- Offline metric calculation, report export and parameterized cost estimation
+- Zero-shot, few-shot (k=3, 5, 8) and reasoning-guided prompt strategies (Prompt D, optional, not implemented)
+- 80 synthetic labelled messages (20 development, 60 test) and a labelling guide
+- JSON parsing and output validation; 131 automated tests
+- Full benchmark: 5 strategies x 3 runs x 60 test records = 900 evaluations, committed in `outputs/final_benchmark/`
+- Offline analysis of all required metrics (`outputs/final_benchmark/analysis/`)
+- Failure analysis workbook (`outputs/final_benchmark/analysis/error_analysis.xlsx`)
+- Final evaluation report (`submission/ClaimFast_Evaluation_Report.pdf`, 5 pages)
+- Prompt library (`docs/prompt_library.md`, `submission/prompts/`) and one-page labelling guide
 
-### Pending
+### Headline result
 
-- Independent second-person review of the 20-record worksheet (must be completed by a real reviewer; do not fabricate agreement)
-- Approved full benchmark and experiment results
-- Comparative analysis of prompt strategies
-- Production prompt selection
-- Final project report and demonstration
+Strategy B3 (few-shot, k=8) is recommended: 98.9% claim_type accuracy, 96.7% urgency accuracy, 100% injury and high-urgency recall, about $0.19 per 1,000 claims. Strict record exact match is 44.4%; it is 81.7% when the gold location convention ('near ...') is normalised. See the report for details and limitations.
+
+### Still open
+
+- Independent second-person review of the 20-record worksheet: it needs a real reviewer. No agreement rate is reported until it is done.
+- Recorded demo or screenshots: run `scripts/demo_strategies.py` with your API key and capture the output.
