@@ -183,6 +183,17 @@ python scripts/compare_independent_review.py /path/to/completed_review.csv
 
 The script reports per-field agreement, exact-record agreement and each disagreement. Discuss and document disagreements with the reviewer. Do not claim an independent review or agreement rate until a real second reviewer has completed the worksheet.
 
+## Independent confirmation evaluation
+
+The original 60-record test set was used in an earlier benchmark before later prompt and labelling-guide revisions. Its results are retained as historical evidence and are not presented as a pristine, never-exposed final test. A separate 24-message confirmation set is provided to evaluate the frozen current prompts independently.
+
+- Dataset: `data/confirmation.jsonl` (24 new messages; four per claim class)
+- Protocol and limitations: `docs/confirmation_evaluation_protocol.md`
+- Offline validation (no API calls): `./.venv/bin/python scripts/validate_confirmation.py`
+- Run one strategy (real Groq API calls): `./.venv/bin/python scripts/run_confirmation.py --strategy A` (replace A with B1, B2, B3 or C)
+
+Keep the confirmation set out of prompt development and few-shot examples. Do not change prompts or gold labels after viewing its outputs; if tuning follows, a new confirmation set is required. Results from this set must be reported separately from the original 900-evaluation benchmark.
+
 ## Analyse saved results
 
 Analyse a saved log without making any model/API calls:
