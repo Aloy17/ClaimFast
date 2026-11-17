@@ -5,7 +5,7 @@ from pathlib import Path
 
 from evaluation import STRATEGIES, run_evaluation
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data" / "confirmation.jsonl"
 OUTPUT_DIR = ROOT / "outputs" / "confirmation_2026-11-17"
 
