@@ -1,11 +1,14 @@
 """Run one ClaimFast strategy against the independent confirmation set."""
 
 import argparse
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from evaluation import STRATEGIES, run_evaluation
 
-ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data" / "confirmation.jsonl"
 OUTPUT_DIR = ROOT / "outputs" / "confirmation_2026-11-17"
 
