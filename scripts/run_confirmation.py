@@ -48,7 +48,7 @@ def main():
         temporary_path = Path(temporary_file.name)
         with temporary_file:
             temporary_file.write(
-                json.dumps(matches[0], ensure_ascii=False) + "\\n"
+                json.dumps(matches[0], ensure_ascii=False) + "\n"
             )
 
         dataset_path = temporary_path
